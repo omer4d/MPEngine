@@ -52,27 +52,21 @@ function createHandlePropertyDescriptor(offs) {
   };
 }
 
-function SimplePoolHandle(index, data) {
-  this.index = index;
-  this.data = data;
-}
-
-SimplePoolHandle.prototype.valueOf = function() {
-  return this.data[this.index];
-};
-
-function CompoundPoolHandle(index, data, props) {
-  this.index = index;
-  this.data = data;
-  
-  for(var i = 0; i < props.length; ++i)
-    Object.defineProperty(this, props[i], createHandlePropertyDescriptor(i));
-}
-
 function Pool(data, props) {
+  var handles = [];
+
+  for(var i = 0; i < data.length; i += props.length) {
+    var handle = {index: i, data: data};
+    
+    for(var j = 0; j < props.length; ++j)
+      Object.defineProperty(handle, props[j], createHandlePropertyDescriptor(j));
+    
+    handles.push(handle);
+  }
+
   this.props = props;
   this.data = data;
-  this.handles = [];
+  this.handles = new Array(data.length);
   this.used = 0;
 }
 
@@ -86,13 +80,13 @@ Pool.prototype.debug = function() {
 };
 
 Pool.prototype.borrow = function() {
-  var pn = this.props ? this.props.length : 1;
-  
-  if(this.handles.length >= this.data.length / pn)
+  if(this.handles.length >= this.data.length / this.chunkLen)
     throw new Error("Exceeded pool capacity!");
   
-  var handle = this.props ? new CompoundPoolHandle(this.used * pn, this.data, this.props) :
-                            new SimplePoolHandle(this.used, this.data);
+  var handle = {index: this.used * this.props.length, data: this.data};
+  
+  for(var j = 0; j < this.props.length; ++j)
+    Object.defineProperty(handle, this.props[j], createHandlePropertyDescriptor(j));
   
   if(this.used < this.handles.length)
     this.handles[this.used] = handle;
@@ -105,7 +99,7 @@ Pool.prototype.borrow = function() {
 };
 
 Pool.prototype.release = function(handle) {
-  var i, pn = this.props ? this.props.length : 1;
+  var i, pn = this.props.length;
   
   for(i = handle.index; i < (this.used - 1) * pn; ++i)
     this.data[i] = this.data[i + pn];
@@ -119,7 +113,6 @@ Pool.prototype.release = function(handle) {
   --this.used;
 };
 
-
 // *******************
 // * Schema Registry *
 // *******************
@@ -132,22 +125,22 @@ function SchemaRegistry() {
 }
 	
 SchemaRegistry.prototype.registerSchema = function(name, schema) {
-	this.schemaByName[name] = schema;
-	this.schemaById[this.schemaCount] = schema;
-	this.idByName[name] = this.schemaCount;
-	++this.schemaCount;
-};
+	schemaByName[name] = schema;
+	schemaById[schemaCount] = schema;
+	idByName[name] = schemaCount;
+	++schemaCount;
+}
 	
-SchemaRegistry.prototype.lookupByName = function(name) {
-	return this.schemaByName[name];
+SchemaRegistry.prototype.schemaByName = function(name) {
+	return schemaByName[name];
 };
 
-SchemaRegistry.prototype.lookupById = function(id) {
-	return this.schemaById[id];
+SchemaRegistry.prototype.schemaById = function(id) {
+	return schemaById[id];
 };
 
-SchemaRegistry.prototype.lookupIdByName = function(name) {
-	return this.idByName[name];
+SchemaRegistry.prototype.schemaIdByName = function(name) {
+	return idByName[name];
 };
 
 // *************
@@ -159,56 +152,47 @@ function buildSchemaRegistry(floatPool, vecPool) {
 	
 	reg.registerSchema("ball", {
 		pos: vecPool,
-		r: floatPool
+		rad: floatPool
 	});
 	
 	reg.registerSchema("player", {
 		pos: vecPool,
 	});
-	
-	return reg;
 }
 
-function GameState(netSpawn, arenaWidth, arenaHeight) {
-	this.netSpawn = netSpawn;
-    this.balls = [];
-    this.players = [];
-    this.arenaWidth = arenaWidth;
-    this.arenaHeight = arenaHeight;
-	
+function GameState(arenaWidth, arenaHeight) {
+    var balls = [];
+    var w = arenaWidth,
+        h = arenaHeight;
+
     for (var i = 0; i < 10; ++i) {
-		this.addBall();
-    }
-}
+        var r = randf(15, 30);
 
-GameState.prototype.addBall = function() {
-	var ball = this.netSpawn("ball", {
-		vel: vec2(randf(100, 300) * (randf() < 0.5 ? -1 : 1), randf(100, 300) * (randf() < 0.5 ? -1 : 1))
-	});
-	
-	var r = randf(15, 30);
-	ball.r = r;
-	ball.pos.x = randf(r, this.arenaWidth - r);
-	ball.pos.y = randf(r, this.arenaHeight - r);
-	
-	this.balls.push(ball);
-	return ball;
-};
+        balls.push({
+            r: r,
+            pos: vec2(randf(r, w - r), randf(r, h - r)),
+            vel: vec2(randf(100, 300) * (randf() < 0.5 ? -1 : 1), randf(100, 300) * (randf() < 0.5 ? -1 : 1))
+        });
+    }
+
+    this.balls = balls;
+    this.players = [];
+    this.arenaWidth = w;
+    this.arenaHeight = h;
+}
 
 GameState.prototype.addPlayer = function() {
-	var r = 15;
-    var player = this.netSpawn("player", {
+    var r = 15;
+    var player = {
         r: r,
+        pos: vec2(randf(r, this.arenaWidth - r), randf(r, this.arenaHeight - r)),
         vel: vec2(0, 0),
         handleCommands: function(commands) {
             this.vel.x += commands.moveX * 35;
             this.vel.y += commands.moveY * 35;
         }
-    });
+    };
 
-	player.pos.x = randf(r, this.arenaWidth - r);
-	player.pos.y = randf(r, this.arenaHeight - r);
-	
     this.players.push(player);
     return player;
 };
@@ -260,19 +244,15 @@ GameState.prototype.logic = function(dt) {
     var i, j;
 
     for (i = this.balls.length - 1; i >= 0; --i) {
-		if(this.balls[i].remFlag) {
-			this.balls[i].release();
-			this.balls.splice(i, 1);
-		}
+		if(this.balls[i].remFlag)
+			this.balls.splice(i, 1);	
 		else
 			this.moveBall(this.balls[i], dt, 0.95, 0.8);
 	}
 
     for (i = this.players.length - 1; i >= 0; --i) {
-		if(this.players[i].remFlag) {
-			this.players[i].release();
-			this.players.splice(i, 1);
-		}
+		if(this.players[i].remFlag)
+			this.players.splice(i, 1);	
 		else
 			this.moveBall(this.players[i], dt, 0.87, 0);
 	}
@@ -336,7 +316,7 @@ function FakeDispatcher(router, sourceHandle) {
             if (entry.delay <= 0) {
                 messageBuffer.splice(i, 1);
 
-                if (Math.random() < 2) {
+                if (Math.random() < 0.6) {
                     var targetObj = router[entry.targetHandle];
                     if (entry.message.type in targetObj)
                         targetObj[entry.message.type](sourceHandle, entry.message);
@@ -348,7 +328,7 @@ function FakeDispatcher(router, sourceHandle) {
     }, 10);
 
     this.messageBuffer = messageBuffer;
-    this.lag = 0.0;
+    this.lag = 0.2;
 }
 
 FakeDispatcher.prototype.send = function(targetHandle, msg) {
@@ -370,59 +350,12 @@ function RemoteClient(handle, player) {
 	this.lastAck = -1;
 }
 
-function buildNetSpawner(reg, netEnts) {
-	return function(schemaName, obj) {
-	  var schema = reg.lookupByName(schemaName);
-	  var netIndex = netEnts.length;
-	  var handles = {};
-	  
-	  obj = obj || {};
-	  
-	  netEnts.push(reg.lookupIdByName(schemaName));
-	  
-	  Object.keys(schema).forEach(function(key) {
-		var handle = schema[key].borrow();
-		handles[key] = handle;
-		
-		if(handle.constructor === SimplePoolHandle) {
-		  Object.defineProperty(obj, key, {
-			enumerable: true,
-			configurable: false,
-			get: function() {
-			  return handle.data[handle.index];
-			},
-			set: function(x) {
-			  handle.data[handle.index] = x;
-			}
-		  });
-		}
-		else
-		  obj[key] = handle;
-	  });
-	  
-	  obj.release = function() {
-		Object.keys(schema).forEach(function(key) {
-		  schema[key].release(handles[key]);
-		});
-		netEnts.splice(netIndex, 1);
-	  };
-	  
-	  return obj;
-	};
-}
-
-
 function Server(dispatcher) {
-	this.vecPool = new Pool(new Float32Array(2048*2*4), ["x", "y"]);
-	this.floatPool = new Pool(new Float32Array(2048*8));
-	this.netEnts = [];	
-	this.reg = buildSchemaRegistry(this.floatPool, this.vecPool);
-	
     this.dispatcher = dispatcher;
 	this.incomingQueues = {};
     this.clients = {};
     this.lastUpdateTime = performance.now();
-    this.gameState = new GameState(buildNetSpawner(this.reg, this.netEnts), 512, 512);
+    this.gameState = new GameState(512, 512);
 	this.updateCount = 0;
 
     var self = this;
@@ -533,11 +466,6 @@ Server.prototype.update = function() {
         });
 		
     });
-	
-	//for(var i = 0; i < 20; ++i)
-	//	console.log(this.vecPool.data[i * 2 + 0], this.vecPool.data[i * 2 + 1]);
-	//console.log(this.netEnts);
-	//console.log(".......................");
 	
 	++this.updateCount;
 };
