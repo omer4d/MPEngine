@@ -130,7 +130,7 @@ function SchemaRegistry() {
 	this.nameById = {};
 	this.idByName = {};
 }
-	
+
 SchemaRegistry.prototype.registerSchema = function(name, schema) {
 	var id = ++this.schemaCount;
 	this.schemaByName[name] = schema;
@@ -198,21 +198,6 @@ SchemaRegistry.prototype.instantiateById = function(schemaId, obj) {
 // *************
 // * GameState *
 // *************
-
-function buildSchemaRegistry(floatPool, vecPool) {
-	var reg = new SchemaRegistry();
-	
-	reg.registerSchema("ball", {
-		pos: vecPool,
-		r: floatPool
-	});
-	
-	reg.registerSchema("player", {
-		pos: vecPool,
-	});
-	
-	return reg;
-}
 
 function GameState(netSpawn, arenaWidth, arenaHeight) {
 	this.netSpawn = netSpawn;
@@ -376,6 +361,48 @@ FakeDispatcher.prototype.send = function(targetHandle, msg) {
     });
 };
 
+// ***************
+// * SharedState *
+// ***************
+
+function SharedState() {
+	this.vecPoolData = new Float32Array(2048*2*4);
+	this.floatPoolData = new Float32Array(2048*8);
+	
+	var vecPool = new Pool(this.vecPoolData, ["x", "y"]);
+	var floatPool = new Pool(this.floatPoolData);
+	
+	this.entities = [];
+	this.reg = new SchemaRegistry();
+	
+	this.reg.registerSchema("ball", {
+		pos: vecPool,
+		r: floatPool
+	});
+	
+	this.reg.registerSchema("player", {
+		pos: vecPool,
+	});
+}
+
+SharedState.prototype.update = function(msg) {
+	var i;
+	
+	//this.floatPoolData.set(msg.floatPoolData);
+	//this.vecPoolData.set(msg.vecPoolData);
+	//console.log(msg.entities);
+	
+	for(i = 0; i < this.entities.length; ++i)
+		this.entities[i].release();
+	this.entities = [];
+	
+	this.floatPoolData.set(msg.sharedState.floatPoolData);
+	this.vecPoolData.set(msg.sharedState.vecPoolData);
+	
+	for(i = 0; i < msg.sharedState.entities.length; ++i)
+		this.entities.push(this.reg.instantiateById(msg.sharedState.entities[i]));
+}
+
 // **********
 // * Server *
 // **********
@@ -387,16 +414,16 @@ function RemoteClient(handle, player) {
 	this.lastAck = -1;
 }
 
-function buildNetSpawner(reg, netEnts) {
+function buildNetSpawner(reg, entities) {
 	return function(schemaName, obj) {
-		var netIndex = netEnts.length;
+		var idx = entities.length;
 		var res = reg.instantiateByName(schemaName, obj);
 		var oldRelease = res.release;
 		
-		netEnts.push(reg.lookupIdByName(schemaName));
+		entities.push(reg.lookupIdByName(schemaName));
 		
 		res.release = function() {
-			netEnts.splice(netIndex, 1);
+			entities.splice(idx, 1);
 			oldRelease();
 		};
 		
@@ -405,20 +432,13 @@ function buildNetSpawner(reg, netEnts) {
 }
 
 function Server(dispatcher) {
-	this.vecPoolData = new Float32Array(2048*2*4);
-	this.floatPoolData = new Float32Array(2048*8);
-	
-	var vecPool = new Pool(this.vecPoolData, ["x", "y"]);
-	var floatPool = new Pool(this.floatPoolData);
-	
-	this.netEnts = [];
-	this.reg = buildSchemaRegistry(floatPool, vecPool);
+	this.sharedState = new SharedState();
 	
     this.dispatcher = dispatcher;
 	this.incomingQueues = {};
     this.clients = {};
     this.lastUpdateTime = performance.now();
-    this.gameState = new GameState(buildNetSpawner(this.reg, this.netEnts), 512, 512);
+    this.gameState = new GameState(buildNetSpawner(this.sharedState.reg, this.sharedState.entities), 512, 512);
 	this.updateCount = 0;
 
     var self = this;
@@ -523,9 +543,7 @@ Server.prototype.update = function() {
 				return e.message;
 			}),
 			updateNum: self.updateCount,
-			vecPoolData: self.vecPoolData,
-			floatPoolData: self.floatPoolData,
-			entities: self.netEnts,
+			sharedState: self.sharedState,
         });
 		
     });
@@ -577,15 +595,8 @@ Renderer.prototype.render = function(entities) {
 // **********
 
 function Client(renderer, dispatcher) {
-	this.vecPoolData = new Float32Array(2048*2*4);
-	this.floatPoolData = new Float32Array(2048*8);
-	
-	var vecPool = new Pool(this.vecPoolData, ["x", "y"]);
-	var floatPool = new Pool(this.floatPoolData);
-	
-	this.reg = buildSchemaRegistry(floatPool, vecPool);
-	
-	this.entities = [];
+	this.sharedState = new SharedState();
+
     this.renderer = renderer;
     this.renderingEnabled = true;
     this.dispatcher = dispatcher;
@@ -602,7 +613,7 @@ function Client(renderer, dispatcher) {
 				ack: self.lastUpdateNum
             });
 
-            renderer.render(self.entities);
+            renderer.render(self.sharedState.entities);
             requestAnimFrame(self.renderLoop);
         }
     };
@@ -643,21 +654,7 @@ Client.prototype.connectTo = function(serverHandle) {
 };
 
 Client.prototype.update = function(sender, msg) {
-	var i;
-	
-	//this.floatPoolData.set(msg.floatPoolData);
-	//this.vecPoolData.set(msg.vecPoolData);
-	//console.log(msg.entities);
-	
-	for(i = 0; i < this.entities.length; ++i)
-		this.entities[i].release();
-	this.entities = [];
-	
-	this.floatPoolData.set(msg.floatPoolData);
-	this.vecPoolData.set(msg.vecPoolData);
-	
-	for(i = 0; i < msg.entities.length; ++i)
-		this.entities.push(this.reg.instantiateById(msg.entities[i]));
+	this.sharedState.update(msg);
 	
 	//console.log(this.entities);
 	//console.log(msg.vecPoolData);
