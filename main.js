@@ -365,12 +365,91 @@ FakeDispatcher.prototype.send = function(targetHandle, msg) {
 // * SharedState *
 // ***************
 
+function createPatch(bytes1, bytes2) {
+  var masks = [0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80];
+  var out = [];
+  
+  if(bytes1.length !== bytes2.length)
+    throw new Error("Input arrays must be of equal length.");
+  
+  var count = ((bytes1[0] ^ bytes2[0]) & 0x1) ? 1 : 0, last = !count;
+  
+  for(var i = 0; i < bytes1.length; ++i) {
+    for(var j = 0; j < 8; ++j) {
+      var curr = (bytes1[i] ^ bytes2[i]) & masks[j];
+      if(curr && last || !curr && !last) {
+        ++count;
+        if(count === 255) {
+          out.push(count);
+          count = 0;
+          last = !curr;
+        }
+      }else {
+        out.push(count);
+        last = curr;
+        count = 1;
+      }
+    }
+  }
+  
+  out.push(count);
+  
+  return out;
+}
+
+function applyPatch(bytes, patch) {
+  var masks = [0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80];
+  var byteIdx = 0, leftoverBits = 0;
+  var curr = patch[0];
+  var i, j;
+  
+  for(i = 1; i < patch.length; ++i) {
+    var p = patch[i];
+    
+    if(leftoverBits > 0) {
+      var n = Math.min(p, leftoverBits);
+      
+      if(curr) {
+        var start = 8 - leftoverBits;
+        
+        for(j = start; j < start + n; ++j)
+            bytes[byteIdx] ^= masks[j];
+      }
+      
+      p -= n;
+      leftoverBits -= n;
+      
+      if(leftoverBits === 0)
+        ++byteIdx;
+    }
+    
+    if(p > 0) {
+      if(curr) {
+        for(j = 0; j < Math.floor(p / 8); ++j)
+          bytes[byteIdx++] ^= 0xFF;
+        for(j = 0; j < p % 8; ++j)
+          bytes[byteIdx] ^= masks[j];
+      }
+      else
+        byteIdx += Math.floor(p / 8);
+      leftoverBits = 8 - (p % 8);
+    }
+
+    curr = !curr;
+  }
+}
+
 function SharedState() {
-	this.vecPoolData = new Float32Array(2048*2*4);
-	this.floatPoolData = new Float32Array(2048*8);
+	//this.vecPoolData = new Float32Array(2048*2*4*4);
+	//this.floatPoolData = new Float32Array(2048*8*4);
+	var vecPoolBytes = new ArrayBuffer(2048*2*4 * 4);
+	var floatPoolBytes = new ArrayBuffer(2048*8 * 4);
 	
-	var vecPool = new Pool(this.vecPoolData, ["x", "y"]);
-	var floatPool = new Pool(this.floatPoolData);
+	this.vecPoolData = new Int8Array(vecPoolBytes);
+	this.floatPoolData = new Int8Array(floatPoolBytes);
+	
+	var vecPool = new Pool(new Float32Array(vecPoolBytes), ["x", "y"]);
+	var floatPool = new Pool(new Float32Array(floatPoolBytes));
 	
 	this.entities = [];
 	this.reg = new SchemaRegistry();
@@ -401,7 +480,16 @@ SharedState.prototype.update = function(msg) {
 	
 	for(i = 0; i < msg.sharedState.entities.length; ++i)
 		this.entities.push(this.reg.instantiateById(msg.sharedState.entities[i]));
-}
+};
+
+SharedState.prototype.copy = function(source) {
+	this.vecPoolData.set(source.vecPoolData);
+	this.floatPoolData.set(source.floatPoolData);
+};
+
+SharedState.prototype.delta = function(previous) {
+	
+};
 
 // **********
 // * Server *
