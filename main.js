@@ -8,6 +8,10 @@ function randf(min, max) {
     return min + Math.random() * (max - min);
 }
 
+function nrandf(mean, stdev) {
+  return mean + (randf() + randf() + randf()) * stdev;
+}
+
 function inRange(x, min, max) {
     return x >= min && x <= max;
 }
@@ -338,7 +342,7 @@ function FakeDispatcher(router, sourceHandle) {
             if (entry.delay <= 0) {
                 messageBuffer.splice(i, 1);
 
-                if (Math.random() < 2) {
+                if (Math.random() < 0.9) {
                     var targetObj = router[entry.targetHandle];
                     if (entry.message.type in targetObj)
                         targetObj[entry.message.type](sourceHandle, entry.message);
@@ -350,12 +354,12 @@ function FakeDispatcher(router, sourceHandle) {
     }, 5);
 
     this.messageBuffer = messageBuffer;
-    this.lag = 0.0;
+    this.lag = 0.05;
 }
 
 FakeDispatcher.prototype.send = function(targetHandle, msg) {
     this.messageBuffer.push({
-        delay: this.lag,
+        delay: nrandf(this.lag, this.lag / 2),
         targetHandle: targetHandle,
         message: msg
     });
@@ -730,6 +734,9 @@ Client.prototype.connectTo = function(serverHandle) {
 };
 
 Client.prototype.fullUpdate = function(sender, msg) {
+	if(msg.updateNum < this.lastUpdateNum)
+		return;
+	
 	this.sharedState.applyFullUpdate(msg);
 	
 	//console.log(this.entities);
@@ -749,6 +756,9 @@ Client.prototype.fullUpdate = function(sender, msg) {
 };
 
 Client.prototype.update = function(sender, msg) {
+	if(msg.updateNum < this.lastUpdateNum)
+		return;
+	
 	console.log("Received delta:", msg.delta.vecPoolData.length, msg.delta.floatPoolData.length);
 	this.sharedState.applyDelta(msg);
 	this.lastUpdateNum = msg.updateNum;
