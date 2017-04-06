@@ -1,3 +1,9 @@
+var SERVER_TICKRATE = 30;
+var FAKE_LAG = 100;
+var FAKE_LAG_STDEV = 0;
+var FAKE_LOSS = 0.5;
+
+
 window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
     window.setTimeout(callback, 1000 / 60);
 };
@@ -342,7 +348,7 @@ function FakeDispatcher(router, sourceHandle) {
             if (entry.delay <= 0) {
                 messageBuffer.splice(i, 1);
 
-                if (Math.random() < 0.9) {
+                if (Math.random() < (1 - FAKE_LOSS)) {
                     var targetObj = router[entry.targetHandle];
                     if (entry.message.type in targetObj)
                         targetObj[entry.message.type](sourceHandle, entry.message);
@@ -354,12 +360,11 @@ function FakeDispatcher(router, sourceHandle) {
     }, 5);
 
     this.messageBuffer = messageBuffer;
-    this.lag = 0.05;
 }
 
 FakeDispatcher.prototype.send = function(targetHandle, msg) {
     this.messageBuffer.push({
-        delay: nrandf(this.lag, this.lag / 2),
+        delay: nrandf(FAKE_LAG / 1000, FAKE_LAG_STDEV / 1000),
         targetHandle: targetHandle,
         message: msg
     });
@@ -512,7 +517,7 @@ function Server(dispatcher) {
     var self = this;
     setInterval(function() {
         self.update();
-    }, 1000 / 30);
+    }, 1000 / SERVER_TICKRATE);
 }
 
 Server.prototype.onMessage = function(senderHandle, msg) {
