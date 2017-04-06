@@ -347,7 +347,7 @@ function FakeDispatcher(router, sourceHandle) {
                 }
             }
         }
-    }, 10);
+    }, 5);
 
     this.messageBuffer = messageBuffer;
     this.lag = 0.0;
@@ -379,11 +379,11 @@ function createPatch(bytes1, bytes2) {
       var curr = (bytes1[i] ^ bytes2[i]) & masks[j];
       if(curr && last || !curr && !last) {
         ++count;
-        if(count === 255) {
-          out.push(count);
-          count = 0;
-          last = !curr;
-        }
+        //if(count === 255) {
+        //  out.push(count);
+        //  count = 0;
+        //  last = !curr;
+        //}
       }else {
         out.push(count);
         last = curr;
@@ -440,8 +440,6 @@ function applyPatch(bytes, patch) {
 }
 
 function SharedState() {
-	//this.vecPoolData = new Float32Array(2048*2*4*4);
-	//this.floatPoolData = new Float32Array(2048*8*4);
 	var vecPoolBytes = new ArrayBuffer(2048*2*4 * 4);
 	var floatPoolBytes = new ArrayBuffer(2048*8 * 4);
 	
@@ -464,7 +462,19 @@ function SharedState() {
 	});
 }
 
-SharedState.prototype.update = function(msg) {
+SharedState.prototype.copy = function(source) {
+	this.vecPoolData.set(source.vecPoolData);
+	this.floatPoolData.set(source.floatPoolData);
+};
+
+SharedState.prototype.delta = function(previous) {
+	return {
+		floatPoolData: createPatch(this.floatPoolData, previous.floatPoolData),
+		vecPoolData: createPatch(this.vecPoolData, previous.vecPoolData)
+	};
+};
+
+SharedState.prototype.applyFullUpdate = function(msg) {
 	var i;
 	
 	//this.floatPoolData.set(msg.floatPoolData);
@@ -482,13 +492,9 @@ SharedState.prototype.update = function(msg) {
 		this.entities.push(this.reg.instantiateById(msg.sharedState.entities[i]));
 };
 
-SharedState.prototype.copy = function(source) {
-	this.vecPoolData.set(source.vecPoolData);
-	this.floatPoolData.set(source.floatPoolData);
-};
-
-SharedState.prototype.delta = function(previous) {
-	
+SharedState.prototype.applyDelta = function(msg) {
+	applyPatch(this.floatPoolData, msg.delta.floatPoolData);
+	applyPatch(this.vecPoolData, msg.delta.vecPoolData);
 };
 
 // **********
@@ -500,6 +506,7 @@ function RemoteClient(handle, player) {
 	this.player = player;
 	this.outgoingQueue = [];
 	this.lastAck = -1;
+	this.lastAckState = new SharedState();
 }
 
 function buildNetSpawner(reg, entities) {
@@ -615,6 +622,9 @@ Server.prototype.update = function() {
 	
     var self = this;
     Object.keys(this.clients).forEach(function(key) {
+		var client = self.clients[key];
+		
+		/*
 		if(self.updateCount % 10 === 0) {
 			self.clients[key].outgoingQueue.push({
 				updateNum: self.updateCount,
@@ -623,17 +633,26 @@ Server.prototype.update = function() {
 					serial: self.updateCount / 10
 				},
 			});
+		}*/
+		
+		if(client.lastAck < 0) {
+			self.dispatcher.send(client.handle, {
+				type: "fullUpdate",
+				messages: client.outgoingQueue.map(function(e) {
+					return e.message;
+				}),
+				updateNum: self.updateCount,
+				sharedState: self.sharedState,
+			});
+		}else {
+			self.dispatcher.send(client.handle, {
+				type: "update",
+				updateNum: self.updateCount,
+				delta: client.lastAckState.delta(self.sharedState)
+			});
 		}
 		
-        self.dispatcher.send(self.clients[key].handle, {
-            type: "update",
-			messages: self.clients[key].outgoingQueue.map(function(e) {
-				return e.message;
-			}),
-			updateNum: self.updateCount,
-			sharedState: self.sharedState,
-        });
-		
+		client.lastAckState.copy(self.sharedState);
     });
 	
 	//for(var i = 0; i < 20; ++i)
@@ -741,8 +760,8 @@ Client.prototype.connectTo = function(serverHandle) {
     attemptConnection();
 };
 
-Client.prototype.update = function(sender, msg) {
-	this.sharedState.update(msg);
+Client.prototype.fullUpdate = function(sender, msg) {
+	this.sharedState.applyFullUpdate(msg);
 	
 	//console.log(this.entities);
 	//console.log(msg.vecPoolData);
@@ -753,10 +772,16 @@ Client.prototype.update = function(sender, msg) {
 		requestAnimFrame(this.renderLoop);
 	}
 	
-	//console.log("extra:", msg.messages.map(function(m) {
-	//	return m.serial;
-	//}), msg.updateNum);
+	console.log("extra:", msg.messages.map(function(m) {
+		return m.serial;
+	}), msg.updateNum);
 	
+	this.lastUpdateNum = msg.updateNum;
+};
+
+Client.prototype.update = function(sender, msg) {
+	console.log("Received delta:", msg.delta.vecPoolData.length, msg.delta.floatPoolData.length);
+	this.sharedState.applyDelta(msg);
 	this.lastUpdateNum = msg.updateNum;
 };
 
