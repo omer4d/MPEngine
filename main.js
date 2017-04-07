@@ -1,8 +1,17 @@
+//var SERVER_TICKRATE = 30;
+//var FAKE_LAG = 50;
+//var FAKE_LAG_STDEV = 30;
+//var FAKE_LOSS = 0.2;
+//var LERP_TIME = 100;
+
+
 var SERVER_TICKRATE = 30;
-var FAKE_LAG = 50;
-var FAKE_LAG_STDEV = 30;
-var FAKE_LOSS = 0.2;
-var LERP_TIME = 100;//(BUFFERING/SERVER_TICKRATE);
+var FAKE_LAG = 0;
+var FAKE_LAG_STDEV = 0;
+var FAKE_LOSS = 0;
+var LERP_TIME = 0;
+
+//(BUFFERING/SERVER_TICKRATE);
 
 window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
     window.setTimeout(callback, 1000 / 60);
@@ -324,8 +333,16 @@ GameState.prototype.logic = function(dt) {
 
     for (i = 0; i < this.balls.length; ++i)
         for (j = 0; j < this.players.length; ++j)
-            if (collisionTest(this.balls[i], this.players[j]))
+            if (collisionTest(this.balls[i], this.players[j])) {
                 collisionResponse(this.balls[i], this.players[j], 0.8);
+				this.balls[i].r -= 5;
+				if(this.balls[i].r < 1) {
+					this.balls[i].r = 1;
+					this.balls[i].remFlag = true;
+				}
+					
+				//Math.max(this.balls[i].r - 5, 0);
+			}
 }
 
 // ******************
@@ -429,7 +446,7 @@ function SharedState() {
 	var vecPool = new Pool(this.vecPoolData, ["x", "y"]);
 	var floatPool = new Pool(this.floatPoolData);
 	
-	this.entities = [];
+	this.entities = {};
 	this.reg = new SchemaRegistry();
 	
 	this.reg.registerSchema("ball", {
@@ -457,15 +474,19 @@ SharedState.prototype.delta = function(previous) {
 SharedState.prototype.applyFullUpdate = function(msg) {
 	var i;
 	
-	for(i = 0; i < this.entities.length; ++i)
-		this.entities[i].release();
-	this.entities = [];
+	var keys = Object.keys(this.entities);
+	
+	for(i = 0; i < keys.length; ++i)
+		this.entities[keys[i]].release();
+	
+	this.entities = {};
 	
 	this.floatPoolData.set(msg.sharedState.floatPoolData);
 	this.vecPoolData.set(msg.sharedState.vecPoolData);
 	
-	for(i = 0; i < msg.sharedState.entities.length; ++i)
-		this.entities.push(this.reg.instantiateById(msg.sharedState.entities[i]));
+	keys = Object.keys(msg.sharedState.entities);
+	for(i = 0; i < keys.length; ++i)
+		this.entities[keys[i]] = this.reg.instantiateById(msg.sharedState.entities[keys[i]]);
 };
 
 SharedState.prototype.applyDelta = function(msg) {
@@ -495,19 +516,32 @@ function RemoteClient(handle, player) {
 	this.lastAckState = new SharedState();
 }
 
-function buildNetSpawner(reg, entities) {
+function buildNetSpawner(server) {
+	var entities = server.sharedState.entities;
+	var reg = server.sharedState.reg;
+	var nextId = 0;
+	
 	return function(schemaName, obj) {
-		var idx = entities.length;
 		var res = reg.instantiateByName(schemaName, obj);
 		var oldRelease = res.release;
+		var tmp = nextId;
 		
-		entities.push(reg.lookupIdByName(schemaName));
+		entities[tmp] = reg.lookupIdByName(schemaName);
 		
 		res.release = function() {
-			entities.splice(idx, 1);
-			oldRelease();
+			if(!server.incomingQueues.release)
+				server.incomingQueues.release = [];
+			
+			server.incomingQueues.release.push({
+				oldRelease: oldRelease,
+				index: tmp
+			});
+			
+			//entities.splice(idx, 1);
+			//oldRelease();
 		};
 		
+		++nextId;
 		return res;
 	};
 }
@@ -519,7 +553,7 @@ function Server(dispatcher) {
 	this.incomingQueues = {};
     this.clients = {};
     this.lastUpdateTime = performance.now();
-    this.gameState = new GameState(buildNetSpawner(this.sharedState.reg, this.sharedState.entities), 512, 512);
+    this.gameState = new GameState(buildNetSpawner(this), 512, 512);
 	this.updateCount = 0;
 
 	this.updateAccum = 0;
@@ -613,6 +647,20 @@ Server.prototype.handlePlayerCommands = function() {
 	this.incomingQueues.playerCommands = [];
 };
 
+Server.prototype.handleReleases = function() {
+	var queue = this.incomingQueues.release;
+
+	if(!queue || queue.length === 0)
+		return;
+	
+	for(var i = 0; i < queue.length; ++i) {
+		queue[i].oldRelease();
+		delete this.sharedState.entities[queue[i].index];
+	}
+	
+	this.incomingQueues.release = [];
+};
+
 Server.prototype.update = function() {
     var t = performance.now();
     var dt = (t - this.lastUpdateTime) / 1000;
@@ -638,10 +686,16 @@ Server.prototype.update = function() {
 			});
 		}*/
 		
-		if(client.lastAck < 0) {
+		
+		if(client.lastAck < 0 || 1) {
 			var cpy = new SharedState();
 			cpy.copy(self.sharedState);
-			cpy.entities = self.sharedState.entities.slice();
+			cpy.entities = Object.keys(self.sharedState.entities).reduce(function(ents, key) {
+				ents[key] = self.sharedState.entities[key];
+				return ents;
+			}, {});
+			
+			console.log(self.updateCount, self.sharedState.entities);
 			
 			self.dispatcher.send(client.handle, {
 				type: "fullUpdate",
@@ -651,16 +705,18 @@ Server.prototype.update = function() {
 				updateNum: self.updateCount,
 				sharedState: cpy
 			});
-		}else {
+		}/*else {
 			self.dispatcher.send(client.handle, {
 				type: "update",
 				updateNum: self.updateCount,
 				delta: self.sharedState.delta(client.lastAckState)
 			});
-		}
+		}*/
 		
 		client.lastAckState.copy(self.sharedState);
     });
+	
+	this.handleReleases();
 	
 	++this.updateCount;
 };
@@ -683,12 +739,15 @@ function drawCircle(context, x, y, r, col) {
 
 Renderer.prototype.render = function(entities) {
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-	for(var i = 0; i < entities.length; ++i) {
-		if(entities[i].schema === "ball")
-			drawCircle(this.context, entities[i].pos.x, entities[i].pos.y, entities[i].r, "green");
+	var keys = Object.keys(entities);
+	
+	for(var i = 0; i < keys.length; ++i) {
+		var ent = entities[keys[i]];
+		
+		if(ent.schema === "ball")
+			drawCircle(this.context, ent.pos.x, ent.pos.y, ent.r, "green");
 		else
-			drawCircle(this.context, entities[i].pos.x, entities[i].pos.y, 15, "blue");
+			drawCircle(this.context, ent.pos.x, ent.pos.y, 15, "blue");
 	}
 };
 
@@ -709,6 +768,8 @@ function findInterpolationDest(buffer, firstUpdate, secsPerTick, t) {
 }
 
 function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
+	
+/*
   var pos = findInterpolationDest(buffer, firstUpdate, secsPerTick, t);
   
   if(pos < 0) {
@@ -718,11 +779,11 @@ function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
 	  buffer.splice(0, buffer.length - 1);
   }
   else if(pos === 0) {
-	console.log("behind server", buffer.length);
+	//console.log("behind server", buffer.length);
 	dest.copy(buffer[0].state);
   }
   else {
-	  console.log("interpolating", buffer.length);
+	  //console.log("interpolating", buffer.length);
 	var k = (t - (buffer[pos - 1].updateNum - firstUpdate) * secsPerTick) /
 		  ((buffer[pos].updateNum - buffer[pos - 1].updateNum) * secsPerTick);
 	
@@ -731,6 +792,10 @@ function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
 	if(pos > 1)
 	  buffer.splice(0, pos - 1);
   }
+*/
+
+	dest.copy(buffer[buffer.length - 1].state);
+	dest.entities = buffer[buffer.length - 1].state.entities;
 }
 
 function Client(renderer, dispatcher) {
@@ -783,7 +848,7 @@ Client.prototype.generateCommands = function() {
     else if (keystates["s"])
         moveY = 1;
 
-	console.log(moveX, moveY);
+	//console.log(moveX, moveY);
 	
     return {
         moveX: moveX,
@@ -814,6 +879,8 @@ Client.prototype.fullUpdate = function(sender, msg) {
 	state.applyFullUpdate(msg);
 	this.bufferedStates.push({state: state, updateNum: msg.updateNum});
 
+	//this.sharedState.applyFullUpdate(msg);
+	
 	if(!this.serverHandle) {
 		console.log("Connection accepted!");
 		this.serverHandle = sender;
@@ -829,6 +896,8 @@ Client.prototype.fullUpdate = function(sender, msg) {
 Client.prototype.update = function(sender, msg) {
 	if(msg.updateNum <= this.lastUpdateNum)
 		return;
+	
+	console.log("WTF!");
 	
 	var state = new SharedState();
 	state.copy(this.bufferedStates[this.bufferedStates.length - 1].state);
