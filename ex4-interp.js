@@ -1,8 +1,8 @@
 var SERVER_TICKRATE = 30;
 var FAKE_LAG = 50;
 var FAKE_LAG_STDEV = 30;
-var FAKE_LOSS = 0.1;
-var BUFFERING = 2;
+var FAKE_LOSS = 0.2;
+var LERP_TIME = 100;//(BUFFERING/SERVER_TICKRATE);
 
 window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
     window.setTimeout(callback, 1000 / 60);
@@ -305,7 +305,7 @@ GameState.prototype.logic = function(dt) {
 			this.balls.splice(i, 1);
 		}
 		else
-			this.moveBall(this.balls[i], dt, 1, 1);
+			this.moveBall(this.balls[i], dt, 0.95, 0.8);
 	}
 
     for (i = this.players.length - 1; i >= 0; --i) {
@@ -320,7 +320,7 @@ GameState.prototype.logic = function(dt) {
     for (i = 0; i < this.balls.length; ++i)
         for (j = i + 1; j < this.balls.length; ++j)
             if (collisionTest(this.balls[i], this.balls[j]))
-                collisionResponse(this.balls[i], this.balls[j], 1);
+                collisionResponse(this.balls[i], this.balls[j], 0.8);
 
     for (i = 0; i < this.balls.length; ++i)
         for (j = 0; j < this.players.length; ++j)
@@ -364,7 +364,7 @@ function FakeDispatcher(router, sourceHandle) {
 
 FakeDispatcher.prototype.send = function(targetHandle, msg) {
     this.messageBuffer.push({
-        delay: nrandf(FAKE_LAG / 1000, FAKE_LAG_STDEV / 1000),
+        delay: nrandf(FAKE_LAG / 2 / 1000, FAKE_LAG_STDEV / 2 / 1000),
         targetHandle: targetHandle,
         message: msg
     });
@@ -696,7 +696,11 @@ Renderer.prototype.render = function(entities) {
 // * Client *
 // **********
 
-function findPos(buffer, firstUpdate, secsPerTick, t) {
+// return the index of the state to interpolate towards
+// -1 if there is none (t is ahead of last state)
+// 0 if t is behind first state
+
+function findInterpolationDest(buffer, firstUpdate, secsPerTick, t) {
   for(var i = 0; i < buffer.length; ++i) {
     if((buffer[i].updateNum - firstUpdate) * secsPerTick > t)
       return i;
@@ -705,15 +709,20 @@ function findPos(buffer, firstUpdate, secsPerTick, t) {
 }
 
 function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
-  var pos = findPos(buffer, firstUpdate, secsPerTick, t);
+  var pos = findInterpolationDest(buffer, firstUpdate, secsPerTick, t);
   
   if(pos < 0) {
 	  //console.log("ZOMG!", t, (buffer[buffer.length - 1].updateNum - firstUpdate) * secsPerTick);
+	  console.log("ahead of server", buffer.length);
 	  dest.copy(buffer[buffer.length - 1].state);
+	  buffer.splice(0, buffer.length - 1);
   }
-  else if(pos === 0)
+  else if(pos === 0) {
+	console.log("behind server", buffer.length);
 	dest.copy(buffer[0].state);
+  }
   else {
+	  console.log("interpolating", buffer.length);
 	var k = (t - (buffer[pos - 1].updateNum - firstUpdate) * secsPerTick) /
 		  ((buffer[pos].updateNum - buffer[pos - 1].updateNum) * secsPerTick);
 	
@@ -753,7 +762,7 @@ function Client(renderer, dispatcher) {
             });
 			
 			
-			buffLerp(self.sharedState, self.bufferedStates, self.firstUpdateNum, 1/SERVER_TICKRATE, self.time - (BUFFERING/SERVER_TICKRATE));
+			buffLerp(self.sharedState, self.bufferedStates, self.firstUpdateNum, 1/SERVER_TICKRATE, self.time - LERP_TIME/1000);
 			
             renderer.render(self.sharedState.entities);
             requestAnimFrame(self.renderLoop);
@@ -774,6 +783,8 @@ Client.prototype.generateCommands = function() {
     else if (keystates["s"])
         moveY = 1;
 
+	console.log(moveX, moveY);
+	
     return {
         moveX: moveX,
         moveY: moveY
