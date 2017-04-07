@@ -1,8 +1,8 @@
 var SERVER_TICKRATE = 30;
-var FAKE_LAG = 50;
-var FAKE_LAG_STDEV = 30;
-var FAKE_LOSS = 0.1;
-var BUFFERING = 2;
+var FAKE_LAG = 100;
+var FAKE_LAG_STDEV = 0;
+var FAKE_LOSS = 0.5;
+
 
 window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
     window.setTimeout(callback, 1000 / 60);
@@ -305,7 +305,7 @@ GameState.prototype.logic = function(dt) {
 			this.balls.splice(i, 1);
 		}
 		else
-			this.moveBall(this.balls[i], dt, 1, 1);
+			this.moveBall(this.balls[i], dt, 0.95, 0.8);
 	}
 
     for (i = this.players.length - 1; i >= 0; --i) {
@@ -320,7 +320,7 @@ GameState.prototype.logic = function(dt) {
     for (i = 0; i < this.balls.length; ++i)
         for (j = i + 1; j < this.balls.length; ++j)
             if (collisionTest(this.balls[i], this.balls[j]))
-                collisionResponse(this.balls[i], this.balls[j], 1);
+                collisionResponse(this.balls[i], this.balls[j], 0.8);
 
     for (i = 0; i < this.balls.length; ++i)
         for (j = 0; j < this.players.length; ++j)
@@ -374,9 +374,7 @@ FakeDispatcher.prototype.send = function(targetHandle, msg) {
 // * SharedState *
 // ***************
 
-function createPatch(older, newer) {
-  var data1 = older;
-  var data2 = newer;
+function createPatch(data1, data2) {
   var lastMode = Math.abs(data1[0] - data2[0]) > 0.03;
   var out = [lastMode ? 1 : 0, 0];
   var lastCounterIdx = 1;
@@ -449,13 +447,17 @@ SharedState.prototype.copy = function(source) {
 
 SharedState.prototype.delta = function(previous) {
 	return {
-		floatPoolData: createPatch(previous.floatPoolData, this.floatPoolData),
-		vecPoolData: createPatch(previous.vecPoolData, this.vecPoolData)
+		floatPoolData: createPatch(this.floatPoolData, previous.floatPoolData),
+		vecPoolData: createPatch(this.vecPoolData, previous.vecPoolData)
 	};
 };
 
 SharedState.prototype.applyFullUpdate = function(msg) {
 	var i;
+	
+	//this.floatPoolData.set(msg.floatPoolData);
+	//this.vecPoolData.set(msg.vecPoolData);
+	//console.log(msg.entities);
 	
 	for(i = 0; i < this.entities.length; ++i)
 		this.entities[i].release();
@@ -472,16 +474,6 @@ SharedState.prototype.applyDelta = function(msg) {
 	applyPatch(this.floatPoolData, msg.delta.floatPoolData);
 	applyPatch(this.vecPoolData, msg.delta.vecPoolData);
 };
-
-SharedState.prototype.lerp = function(a, b, k) {
-	var i;
-	
-	for(i = 0; i < this.floatPoolData.length; ++i)
-		this.floatPoolData[i] = a.floatPoolData[i] * (1 - k) + b.floatPoolData[i] * k;
-	
-	for(i = 0; i < this.vecPoolData.length; ++i)
-		this.vecPoolData[i] = a.vecPoolData[i] * (1 - k) + b.vecPoolData[i] * k;
-}
 
 // **********
 // * Server *
@@ -522,26 +514,9 @@ function Server(dispatcher) {
     this.gameState = new GameState(buildNetSpawner(this.sharedState.reg, this.sharedState.entities), 512, 512);
 	this.updateCount = 0;
 
-	this.updateAccum = 0;
-	
-	var lastTime = performance.now();
     var self = this;
-	
     setInterval(function() {
-		var t = performance.now();
-		var dt = (t - lastTime) / 1000;
-		lastTime = t;
-		
-		self.updateAccum += dt * SERVER_TICKRATE;
-		var n = Math.floor(self.updateAccum);
-		
-		for(var i = 0; i < n; ++i) {
-			self.update();
-			//self.gameState.logic(1/SERVER_TICKRATE);
-			//++self.updateCount;
-		}
-		
-		self.updateAccum -= n;
+        self.update();
     }, 1000 / SERVER_TICKRATE);
 }
 
@@ -620,7 +595,7 @@ Server.prototype.update = function() {
 	
 	this.handleDisconnections();
 	this.handlePlayerCommands();
-    this.gameState.logic(1/SERVER_TICKRATE);
+    this.gameState.logic(dt);
 	this.handleConnections();
 	
     var self = this;
@@ -639,28 +614,29 @@ Server.prototype.update = function() {
 		}*/
 		
 		if(client.lastAck < 0) {
-			var cpy = new SharedState();
-			cpy.copy(self.sharedState);
-			cpy.entities = self.sharedState.entities.slice();
-			
 			self.dispatcher.send(client.handle, {
 				type: "fullUpdate",
 				messages: client.outgoingQueue.map(function(e) {
 					return e.message;
 				}),
 				updateNum: self.updateCount,
-				sharedState: cpy
+				sharedState: self.sharedState,
 			});
 		}else {
 			self.dispatcher.send(client.handle, {
 				type: "update",
 				updateNum: self.updateCount,
-				delta: self.sharedState.delta(client.lastAckState)
+				delta: client.lastAckState.delta(self.sharedState)
 			});
 		}
 		
 		client.lastAckState.copy(self.sharedState);
     });
+	
+	//for(var i = 0; i < 20; ++i)
+	//	console.log(this.vecPool.data[i * 2 + 0], this.vecPool.data[i * 2 + 1]);
+	//console.log(this.netEnts);
+	//console.log(".......................");
 	
 	++this.updateCount;
 };
@@ -690,71 +666,38 @@ Renderer.prototype.render = function(entities) {
 		else
 			drawCircle(this.context, entities[i].pos.x, entities[i].pos.y, 15, "blue");
 	}
+	
+	/*
+    for (i = 0; i < gameState.balls.length; ++i)
+        drawCircle(this.context, gameState.balls[i].pos.x, gameState.balls[i].pos.y, gameState.balls[i].r, "green");
+
+    for (i = 0; i < gameState.players.length; ++i)
+        drawCircle(this.context, gameState.players[i].pos.x, gameState.players[i].pos.y, gameState.players[i].r, "blue");*/
 };
 
 // **********
 // * Client *
 // **********
 
-function findPos(buffer, firstUpdate, secsPerTick, t) {
-  for(var i = 0; i < buffer.length; ++i) {
-    if((buffer[i].updateNum - firstUpdate) * secsPerTick > t)
-      return i;
-  }
-  return -1;
-}
-
-function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
-  var pos = findPos(buffer, firstUpdate, secsPerTick, t);
-  
-  if(pos < 0) {
-	  //console.log("ZOMG!", t, (buffer[buffer.length - 1].updateNum - firstUpdate) * secsPerTick);
-	  dest.copy(buffer[buffer.length - 1].state);
-  }
-  else if(pos === 0)
-	dest.copy(buffer[0].state);
-  else {
-	var k = (t - (buffer[pos - 1].updateNum - firstUpdate) * secsPerTick) /
-		  ((buffer[pos].updateNum - buffer[pos - 1].updateNum) * secsPerTick);
-	
-	dest.lerp(buffer[pos - 1].state, buffer[pos].state, k);
-	
-	if(pos > 1)
-	  buffer.splice(0, pos - 1);
-  }
-}
-
 function Client(renderer, dispatcher) {
-	this.bufferedStates = [];
 	this.sharedState = new SharedState();
 
     this.renderer = renderer;
     this.renderingEnabled = true;
     this.dispatcher = dispatcher;
     this.serverHandle = null;
-	
-	this.firstUpdateNum = -1;
 	this.lastUpdateNum = -1;
-	this.time = 0;
 	
     var self = this;
-	
+
     this.renderLoop = function() {
         if (self.renderingEnabled) {
-			var t = performance.now();
-			var dt = (t - self.lastTime) / 1000;
-			self.lastTime = t;
-			self.time += dt;
-			
             self.dispatcher.send(self.serverHandle, {
                 type: "playerCommands",
                 commands: self.generateCommands(),
 				ack: self.lastUpdateNum
             });
-			
-			
-			buffLerp(self.sharedState, self.bufferedStates, self.firstUpdateNum, 1/SERVER_TICKRATE, self.time - (BUFFERING/SERVER_TICKRATE));
-			
+
             renderer.render(self.sharedState.entities);
             requestAnimFrame(self.renderLoop);
         }
@@ -796,34 +739,33 @@ Client.prototype.connectTo = function(serverHandle) {
 };
 
 Client.prototype.fullUpdate = function(sender, msg) {
-	if(msg.updateNum <= this.lastUpdateNum)
+	if(msg.updateNum < this.lastUpdateNum)
 		return;
 	
-	var state = new SharedState();
-	state.applyFullUpdate(msg);
-	this.bufferedStates.push({state: state, updateNum: msg.updateNum});
-
+	this.sharedState.applyFullUpdate(msg);
+	
+	//console.log(this.entities);
+	//console.log(msg.vecPoolData);
+	
 	if(!this.serverHandle) {
 		console.log("Connection accepted!");
 		this.serverHandle = sender;
-		this.sharedState.applyFullUpdate(msg);
-		this.firstUpdateNum = msg.updateNum;
-		this.lastTime = performance.now();
 		requestAnimFrame(this.renderLoop);
 	}
-
+	
+	console.log("extra:", msg.messages.map(function(m) {
+		return m.serial;
+	}), msg.updateNum);
+	
 	this.lastUpdateNum = msg.updateNum;
 };
 
 Client.prototype.update = function(sender, msg) {
-	if(msg.updateNum <= this.lastUpdateNum)
+	if(msg.updateNum < this.lastUpdateNum)
 		return;
 	
-	var state = new SharedState();
-	state.copy(this.bufferedStates[this.bufferedStates.length - 1].state);
-	state.applyDelta(msg);
-	
-	this.bufferedStates.push({state: state, updateNum: msg.updateNum});
+	console.log("Received delta:", msg.delta.vecPoolData.length, msg.delta.floatPoolData.length);
+	this.sharedState.applyDelta(msg);
 	this.lastUpdateNum = msg.updateNum;
 };
 
