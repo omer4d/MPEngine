@@ -9,7 +9,7 @@ var SERVER_TICKRATE = 30;
 var FAKE_LAG = 0;
 var FAKE_LAG_STDEV = 0;
 var FAKE_LOSS = 0;
-var LERP_TIME = 200;
+var LERP_TIME = 0;
 
 //(BUFFERING/SERVER_TICKRATE);
 
@@ -199,7 +199,6 @@ SchemaRegistry.prototype.instantiateByName = function(schemaName, obj) {
       obj[key] = handle;
   });
   
-  obj.handles = handles;
   obj.release = function() {
     Object.keys(schema).forEach(function(key) {
       schema[key].release(handles[key]);
@@ -786,14 +785,16 @@ function findInterpolationDest(buffer, firstUpdate, secsPerTick, t) {
 }
 
 function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
-  var pos = findInterpolationDest(buffer, firstUpdate, secsPerTick, t);
-  
-  if(pos < 0) {
+	if(buffer.length < 1)
+			return;
+	  
 	var last = buffer[buffer.length - 2];
 	  
 	  if(last)
 	  for(var i = 0; i < last.events.length; ++i) {
 		  if(last.events[i].type === "release") {
+			  console.log("ZOMG!");
+			  
 			  if(dest.entities[last.events[i].id]) {
 				  dest.entities[last.events[i].id].release();
 				  delete dest.entities[last.events[i].id];
@@ -805,6 +806,29 @@ function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
 	dest.copy(last.state);
 	
 	 buffer.splice(0, buffer.length - 1);
+	
+/*
+  var pos = findInterpolationDest(buffer, firstUpdate, secsPerTick, t);
+  
+  if(pos < 0) {
+	  //console.log("ZOMG!", t, (buffer[buffer.length - 1].updateNum - firstUpdate) * secsPerTick);
+	  console.log("ahead of server", buffer.length);
+	  var last = buffer[buffer.length - 1];
+	  
+	  dest.copy(last.state);
+	  buffer.splice(0, buffer.length - 1);
+	  
+	  for(var i = 0; i < last.events.length; ++i) {
+		  if(last.events[i].type === "release") {
+			  console.log("ZOMG!");
+			  
+			  if(dest.entities[last.events[i].id]) {
+				  dest.entities[last.events[i].id].release();
+				  delete dest.entities[last.events[i].id];
+			  }
+				  
+		  }
+	  }
   }
   else if(pos === 0) {
 	console.log("behind server", buffer.length);
@@ -812,35 +836,14 @@ function buffLerp(dest, buffer, firstUpdate, secsPerTick, t) {
   }
   else {
 	  console.log("interpolating", buffer.length);
-	  var last;
-	  
-	  if(pos > 1) {
-		last = buffer[pos - 1];
-		
-	  if(last)
-	  for(var i = 0; i < last.events.length; ++i) {
-		  if(last.events[i].type === "release") {
-			  if(dest.entities[last.events[i].id]) {
-				  dest.entities[last.events[i].id].release();
-				  delete dest.entities[last.events[i].id];
-			  }
-		  }
-	  }
-	}
-	  
-	  
 	var k = (t - (buffer[pos - 1].updateNum - firstUpdate) * secsPerTick) /
 		  ((buffer[pos].updateNum - buffer[pos - 1].updateNum) * secsPerTick);
 	
 	dest.lerp(buffer[pos - 1].state, buffer[pos].state, k);
 	
-	
-	  
-
-	
 	if(pos > 1)
-		buffer.splice(0, pos - 1);
-  }
+	  buffer.splice(0, pos - 1);
+  }*/
 
 	//dest.copy(buffer[buffer.length - 1].state);
 	//dest.entities = buffer[buffer.length - 1].state.entities;
