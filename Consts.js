@@ -1,5 +1,5 @@
 var SERVER_TICKRATE = 30;
-var FAKE_LAG = 100;
+var FAKE_LAG = 300;
 var FAKE_LAG_STDEV = 0;
 var FAKE_LOSS = 0.1;
 var LERP_TIME = 100;

@@ -4,6 +4,34 @@
 	</head>
 	<body bgcolor="FFFFFFFF">
 		<canvas id="myCanvas" width="512" height="512"></canvas>
+		
+		<table>
+			<tr>
+				<td>Lag (ms)</td>
+				<td><input id="lag" type="range" min="0" max="1000" step="20" value="0" /></td>
+				<td id="lag-value">0</td>
+			</tr>
+			
+			<tr>
+				<td>Lag Stdev. (ms)</td>
+				<td><input id="lag-stdev" type="range" min="0" max="200" step="5" value="0" /></td>
+				<td id="lag-stdev-value">0</td>
+			</tr>
+				
+			<tr>
+				<td>Packet Loss %</td>
+				<td><input id="loss" type="range" min="0" max="100" step="5" value="0" /></td>
+				<td id="loss-value">0</td>
+			</tr>
+			
+			<tr>
+				<td>Lerp time (ms)</td>
+				<td><input id="lerp-time" type="range" min="0" max="500" step="5" value="100" /></td>
+				<td id="lerp-value">100</td>
+			</tr>
+				
+		</table>
+		
 		<script src="Util.js"></script>
 		<script src="Consts.js"></script>
 		

@@ -5,6 +5,7 @@ window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAn
 var keystates = {};
 
 document.body.addEventListener('keydown', function(e) {
+	console.log("ZOMG!");
     keystates[e.key] = true;
 });
 
@@ -12,6 +13,22 @@ document.body.addEventListener('keydown', function(e) {
 document.body.addEventListener('keyup', function(e) {
     keystates[e.key] = false;
 });
+
+
+
+function bindSlider(sliderName, displayName, obj, fieldName) {
+	var rangeInput = document.getElementById(sliderName);
+	obj[fieldName] = rangeInput.value;
+	document.getElementById(displayName).textContent = rangeInput.value;
+	
+	rangeInput.addEventListener("change", function() {
+		document.getElementById(displayName).textContent = rangeInput.value;
+		obj[fieldName] = rangeInput.value;
+		console.log("ZOMFG", FAKE_LAG);
+	}, false);
+}
+
+//bindSlider("lag", "lag-value", window, "FAKE_LAG");
 
 var canvas = document.getElementById("myCanvas");
 var context = canvas.getContext("2d");

@@ -74,7 +74,6 @@ Client.prototype.buffLerp = function() {
 	 }
   }
   else if(pos === 0) {
-	console.log("behind server", buffer.length);
 	dest.data.copy(buffer[0].data);
   }
   else {
