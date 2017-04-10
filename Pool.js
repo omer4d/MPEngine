@@ -35,49 +35,40 @@ function CompoundPoolHandle(index, data, props) {
 function Pool(data, props) {
   this.props = props;
   this.data = data;
-  this.handles = [];
-  this.used = 0;
-}
-
-Pool.prototype.debug = function() {
-  var n = this.used;
-  console.log("Handle num:", n);
+  this.used = [];
+  this.lastUsed = -1;
   
-  for(var i = 0; i < n; ++i) {
-    console.log(this.handles[i].index);
-  }
-};
+  var pn = props ? props.length : 1;
+  for(var i = 0; i < data.length / pn; ++i)
+    this.used.push(false);
+}
 
 Pool.prototype.borrow = function() {
   var pn = this.props ? this.props.length : 1;
+  var idx = (this.lastUsed + 1) * pn;
   
-  if(this.handles.length >= this.data.length / pn)
+  if(idx >= this.data.length)
     throw new Error("Exceeded pool capacity!");
   
-  var handle = this.props ? new CompoundPoolHandle(this.used * pn, this.data, this.props) :
-                            new SimplePoolHandle(this.used, this.data);
-  
-  if(this.used < this.handles.length)
-    this.handles[this.used] = handle;
-  else
-    this.handles.push(handle);
-  
-  ++this.used;
+  var handle = this.props ? new CompoundPoolHandle(idx, this.data, this.props) :
+                            new SimplePoolHandle(idx, this.data);
+                            
+  ++this.lastUsed;
+  this.used[this.lastUsed] = true;
   
   return handle;
 };
 
 Pool.prototype.release = function(handle) {
-  var i, pn = this.props ? this.props.length : 1;
-  
-  for(i = handle.index; i < (this.used - 1) * pn; ++i)
-    this.data[i] = this.data[i + pn];
-  
-  for(i = handle.index / pn; i < this.used - 1; ++i) {
-    var next = this.handles[i + 1];
-    next.index = i * pn;
-    this.handles[i] = next;
-  }
-  
-  --this.used;
+	var pn = this.props ? this.props.length : 1;
+	var i = handle.index / pn;
+	this.used[i] = false;
+	
+	if(i === this.lastUsed) {
+		while(this.lastUsed >= 0 && !this.used[this.lastUsed]) {
+			--this.lastUsed;
+		}
+	}
+	
+	//console.log(this.props, this.lastUsed);
 };

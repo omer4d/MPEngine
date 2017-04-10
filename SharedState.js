@@ -44,7 +44,7 @@ function applyPatch(data, patch) {
   }
 }
 
-function SharedState() {
+function SharedStateData() {
 	var vecPoolBytes = new ArrayBuffer(2048*2*4 * 4);
 	var floatPoolBytes = new ArrayBuffer(2048*8 * 4);
 	
@@ -53,9 +53,43 @@ function SharedState() {
 	
 	this.vecPoolData = new Float32Array(vecPoolBytes);
 	this.floatPoolData = new Float32Array(floatPoolBytes);
+}
+
+SharedStateData.prototype.delta = function(previous) {
+	return {
+		floatPoolData: createPatch(previous.floatPoolData, this.floatPoolData),
+		vecPoolData: createPatch(previous.vecPoolData, this.vecPoolData)
+	};
+};
+
+SharedStateData.prototype.applyDelta = function(delta) {
+	applyPatch(this.floatPoolData, delta.floatPoolData);
+	applyPatch(this.vecPoolData, delta.vecPoolData);
+};
+
+
+SharedStateData.prototype.copy = function(source) {
+	this.vecPoolData.set(source.vecPoolData);
+	this.floatPoolData.set(source.floatPoolData);
+};
+
+SharedStateData.prototype.lerp = function(a, b, k) {
+	var i;
 	
-	var vecPool = new Pool(this.vecPoolData, ["x", "y"]);
-	var floatPool = new Pool(this.floatPoolData);
+	for(i = 0; i < this.floatPoolData.length; ++i)
+		this.floatPoolData[i] = a.floatPoolData[i] * (1 - k) + b.floatPoolData[i] * k;
+	
+	for(i = 0; i < this.vecPoolData.length; ++i)
+		this.vecPoolData[i] = a.vecPoolData[i] * (1 - k) + b.vecPoolData[i] * k;
+};
+
+
+
+function SharedState() {
+	this.data = new SharedStateData();
+	
+	var vecPool = new Pool(this.data.vecPoolData, ["x", "y"]);
+	var floatPool = new Pool(this.data.floatPoolData);
 	
 	this.entities = {};
 	this.reg = new SchemaRegistry();
@@ -70,65 +104,33 @@ function SharedState() {
 	});
 }
 
-SharedState.prototype.copy = function(source) {
-	this.vecPoolData.set(source.vecPoolData);
-	this.floatPoolData.set(source.floatPoolData);
-};
-
-SharedState.prototype.delta = function(previous) {
-	return {
-		floatPoolData: createPatch(previous.floatPoolData, this.floatPoolData),
-		vecPoolData: createPatch(previous.vecPoolData, this.vecPoolData)
-	};
-};
-
-SharedState.prototype.fullCopy = function(other) {
-	var i;
-	
-	var keys = Object.keys(this.entities);
+SharedState.prototype.updateEntities = function(entities) {
+	var i, keys = Object.keys(this.entities);
 	
 	for(i = 0; i < keys.length; ++i)
 		this.entities[keys[i]].release();
 	
-	this.entities = {};
+	keys = Object.keys(entities);
 	
-	this.floatPoolData.set(other.floatPoolData);
-	this.vecPoolData.set(other.vecPoolData);
-	
-	keys = Object.keys(other.entities);
-	for(i = 0; i < keys.length; ++i)
-		this.entities[keys[i]] = this.reg.instantiateByName(other.entities[keys[i]].schema);
-};
+	for(i = 0; i < keys.length; ++i) {
+		var id = entities[keys[i]];
+		if(id >= 0)
+			this.entities[keys[i]] = this.reg.instantiateById(id);
+		else
+			this.reg.instantiateById(-id);
+	}
+}
 
-SharedState.prototype.applyFullUpdate = function(msg) {
-	var i;
+SharedState.prototype.applyDeltaUpdate = function(msg) {
+	this.data.applyDelta(msg.delta);
 	
-	var keys = Object.keys(this.entities);
-	
-	for(i = 0; i < keys.length; ++i)
-		this.entities[keys[i]].release();
-	
-	this.entities = {};
-	
-	this.floatPoolData.set(msg.sharedState.floatPoolData);
-	this.vecPoolData.set(msg.sharedState.vecPoolData);
-	
-	keys = Object.keys(msg.sharedState.entities);
-	for(i = 0; i < keys.length; ++i)
-		this.entities[keys[i]] = this.reg.instantiateById(msg.sharedState.entities[keys[i]]);
-};
-
-SharedState.prototype.applyDelta = function(msg) {
-	applyPatch(this.floatPoolData, msg.delta.floatPoolData);
-	applyPatch(this.vecPoolData, msg.delta.vecPoolData);
-};
-
-SharedState.prototype.lerp = function(a, b, k) {
-	var i;
-	
-	for(i = 0; i < this.floatPoolData.length; ++i)
-		this.floatPoolData[i] = a.floatPoolData[i] * (1 - k) + b.floatPoolData[i] * k;
-	
-	for(i = 0; i < this.vecPoolData.length; ++i)
-		this.vecPoolData[i] = a.vecPoolData[i] * (1 - k) + b.vecPoolData[i] * k;
+		/*
+	for(var i = 0; i < msg.messages.length; ++i) {
+		var e = msg.messages[i];
+		
+		if(e.type === "release" && this.entities[e.id]) {
+			this.entities[e.id].release();
+			delete this.entities[e.id];
+		}
+	}*/
 }

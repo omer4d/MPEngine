@@ -58,7 +58,6 @@ SchemaRegistry.prototype.instantiateByName = function(schemaName, obj) {
       obj[key] = handle;
   });
   
-  obj.handles = handles;
   obj.release = function() {
     Object.keys(schema).forEach(function(key) {
       schema[key].release(handles[key]);

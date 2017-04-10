@@ -7,7 +7,6 @@ function RemoteClient(handle, player) {
 	this.player = player;
 	this.outgoingQueue = [];
 	this.lastAck = -1;
-	this.lastAckState = new SharedState();
 }
 
 function buildNetSpawner(server) {
@@ -39,6 +38,7 @@ function buildNetSpawner(server) {
 
 function Server(dispatcher) {
 	this.sharedState = new SharedState();
+	this.lastStateData = new SharedStateData();
 	
     this.dispatcher = dispatcher;
 	this.incomingQueues = {};
@@ -199,9 +199,9 @@ Server.prototype.update = function() {
 		
 		
 		if(client.lastAck < 0) {
-			var cpy = new SharedState();
-			cpy.copy(self.sharedState);
-			cpy.entities = Object.keys(self.sharedState.entities).reduce(function(ents, key) {
+			var dataCpy = new SharedStateData();
+			dataCpy.copy(self.sharedState.data);
+			var entCpy = Object.keys(self.sharedState.entities).reduce(function(ents, key) {
 				ents[key] = self.sharedState.entities[key];
 				return ents;
 			}, {});
@@ -212,20 +212,20 @@ Server.prototype.update = function() {
 				type: "fullUpdate",
 				messages: client.outgoingQueue.slice(),
 				updateNum: self.updateCount,
-				sharedState: cpy
+				data: dataCpy,
+				entities: entCpy
 			});
 		}else {
 			self.dispatcher.send(client.handle, {
 				type: "update",
 				messages: client.outgoingQueue.slice(),
 				updateNum: self.updateCount,
-				delta: self.sharedState.delta(client.lastAckState)
+				delta: self.sharedState.data.delta(self.lastStateData)
 			});
 		}
-		
-		client.lastAckState.copy(self.sharedState);
     });
 	
+	this.lastStateData.copy(this.sharedState.data);
 	this.handleReleases();
 	++this.updateCount;
 };

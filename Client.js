@@ -14,105 +14,10 @@ function findInterpolationDest(buffer, firstUpdate, secsPerTick, t) {
   return -1;
 }
 
-function buffLerp(dest, buffer, firstUpdate, secsPerTick, t, server) {
-  var pos = findInterpolationDest(buffer, firstUpdate, secsPerTick, t);
-  
-  if(pos < 0) {
-	var last = buffer[buffer.length - 2];
-	  
-	  if(last)
-	  for(var i = 0; i < last.events.length; ++i) {
-		  if(last.events[i].type === "release") {
-			  if(dest.entities[last.events[i].id]) {
-				  dest.entities[last.events[i].id].release();
-				  delete dest.entities[last.events[i].id];
-			  }
-		  }
-	  }
-	
-	last =  buffer[buffer.length - 1];
-	dest.copy(last.state);
-	
-	 buffer.splice(0, buffer.length - 1);
-  }
-  else if(pos === 0) {
-	console.log("behind server", buffer.length);
-	dest.copy(buffer[0].state);
-  }
-  else {
-	  //console.log("interpolating", buffer.length);
-	  var last;
-	  
-	  if(pos > 1) {
-		  last = buffer[pos - 1];
-		  var next = buffer[pos];
-		
-		  if(last) {			  
-			  for(var i = 0; i < last.events.length; ++i) {
-				  console.log(last.events[i].updateNum, server.lastHandledUpdateNum);
-				  
-				  if(last.events[i].type === "release" && last.events[i].updateNum >= server.lastHandledUpdateNum) {
-					  console.log("FUCK YES!", last.events[i].id);
-					  
-					  server.lastHandledUpdateNum = last.events[i].updateNum;
-					  
-					  //if(dest.entities[last.events[i].id]) {
-						  
-						  
-						  //console.log("BEFORE:");
-						  //for(var z = 0; z < 22; ++z) {
-							//  console.log("last", last.state.vecPoolData[z]);
-							//  console.log("dest", next.state.vecPoolData[z]);
-							//  console.log("\n");
-						  //}
-						  console.log("-------------------------");
-						  
-						  
-						  dest.entities[last.events[i].id].release();
-						  delete dest.entities[last.events[i].id];
-						  
-						  //console.log(last.state.entities);
-						  
-						  //console.log(last.state.vecPoolData);
-						  
-						  last.state.entities[last.events[i].id].release();
-						  delete last.state.entities[last.events[i].id];
-						  
-						  
-						  //console.log("AFTER:");
-						  //for(var z = 0; z < 22; ++z) {
-							//  console.log("last", last.state.vecPoolData[z]);
-							///  console.log("dest", next.state.vecPoolData[z]);
-							//  console.log("\n");
-						  //}
-						  //console.log("====================================\n\n\n\n\n");
-						  
-						  
-						  
-						 // console.log(last.state.vecPoolData);
-					  //}
-					
-				  }
-			  }
-		  }
-	}
-	  
-	  
-	var k = (t - (buffer[pos - 1].updateNum - firstUpdate) * secsPerTick) /
-		  ((buffer[pos].updateNum - buffer[pos - 1].updateNum) * secsPerTick);
-	
-	dest.lerp(buffer[pos - 1].state, buffer[pos].state, k);
-	
-	if(pos > 1)
-		buffer.splice(0, pos - 1);
-  }
-
-	//dest.copy(buffer[buffer.length - 1].state);
-	//dest.entities = buffer[buffer.length - 1].state.entities;
-}
-
 function Client(keystates, renderer, dispatcher) {
 	this.bufferedStates = [];
+	this.lastBufferedState = null;
+	this.lastHandledEventUpdateNum = -1;
 	this.sharedState = new SharedState();
 
 	this.keystates = keystates;
@@ -142,12 +47,50 @@ function Client(keystates, renderer, dispatcher) {
             });
 			
 			
-			buffLerp(self.sharedState, self.bufferedStates, self.firstUpdateNum, 1/SERVER_TICKRATE, self.time - LERP_TIME/1000, self);
+			self.buffLerp();
 			
             renderer.render(self.sharedState.entities);
             requestAnimFrame(self.renderLoop);
         }
     };
+}
+
+Client.prototype.buffLerp = function() {
+  var dest = this.sharedState;
+  var buffer = this.bufferedStates;
+  var firstUpdate = this.firstUpdateNum;
+  var secsPerTick = 1/SERVER_TICKRATE;
+  var t = this.time - LERP_TIME/1000;
+	
+  var pos = findInterpolationDest(buffer, firstUpdate, secsPerTick, t);
+  
+  if(pos < 0) {
+	 dest.data.copy(buffer[buffer.length - 1].data);
+	 buffer.splice(0, buffer.length - 1);
+	 
+	 if(this.lastBufferedState !== buffer[buffer.length - 1]) {
+		 buffer[buffer.length - 1].action();
+		 this.lastBufferedState = buffer[buffer.length - 1];
+	 }
+  }
+  else if(pos === 0) {
+	console.log("behind server", buffer.length);
+	dest.data.copy(buffer[0].data);
+  }
+  else {
+	var k = (t - (buffer[pos - 1].updateNum - firstUpdate) * secsPerTick) /
+		  ((buffer[pos].updateNum - buffer[pos - 1].updateNum) * secsPerTick);
+	
+	dest.data.lerp(buffer[pos - 1].data, buffer[pos].data, k);
+	
+	if(this.lastBufferedState !== buffer[pos - 1]) {
+		 buffer[pos - 1].action();
+		 this.lastBufferedState = buffer[pos - 1];
+	}
+	
+	if(pos > 1)
+		buffer.splice(0, pos - 1);
+  }
 }
 
 Client.prototype.generateCommands = function() {
@@ -186,20 +129,44 @@ Client.prototype.connectTo = function(serverHandle) {
     attemptConnection();
 };
 
+Client.prototype.handleEvents = function(events) {
+	var umax = this.lastHandledEventUpdateNum;
+	
+	//console.log(events);
+	
+	for(var i = 0; i < events.length; ++i) {
+		var e = events[i];
+		
+		if(e.updateNum > this.lastHandledEventUpdateNum) {
+			if(e.type === "release") {
+				//console.log("ZOMG!");
+				this.sharedState.entities[e.id].release();
+				delete this.sharedState.entities[e.id];
+			}
+			
+			umax = Math.max(umax, e.updateNum);
+		}
+	}
+	
+	this.lastHandledEventUpdateNum = umax;
+};
+
 Client.prototype.fullUpdate = function(sender, msg) {
 	if(msg.updateNum <= this.lastUpdateNum)
 		return;
 	
-	var state = new SharedState();
-	state.applyFullUpdate(msg);
-	this.bufferedStates.push({state: state, updateNum: msg.updateNum, events: msg.messages});
-
-	//this.sharedState.applyFullUpdate(msg);
+	var self = this;
+	
+	this.bufferedStates.push({data: msg.data, updateNum: msg.updateNum, action: function() {
+		self.sharedState.updateEntities(msg.entities);
+		self.handleEvents(msg.messages);
+	}});
 	
 	if(!this.serverHandle) {
 		console.log("Connection accepted!");
 		this.serverHandle = sender;
-		this.sharedState.applyFullUpdate(msg);
+		//this.sharedState.updateEntities(msg.entities);
+		//this.sharedState.data.copy(msg.data);
 		this.firstUpdateNum = msg.updateNum;
 		this.lastTime = performance.now();
 		requestAnimFrame(this.renderLoop);
@@ -212,13 +179,15 @@ Client.prototype.update = function(sender, msg) {
 	if(msg.updateNum <= this.lastUpdateNum)
 		return;
 	
-	//console.log(msg.messages);
+	var data = new SharedStateData();
+	data.copy(this.bufferedStates[this.bufferedStates.length - 1].data);
+	data.applyDelta(msg.delta);
 	
-	var state = new SharedState();
-	state.fullCopy(this.bufferedStates[this.bufferedStates.length - 1].state);
-	state.applyDelta(msg);
+	var self = this;
 	
-	this.bufferedStates.push({state: state, updateNum: msg.updateNum, events: msg.messages});
+	this.bufferedStates.push({data: data, updateNum: msg.updateNum, action: function() {
+		self.handleEvents(msg.messages);
+	}});
 	this.lastUpdateNum = msg.updateNum;
 };
 
