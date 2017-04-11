@@ -14,7 +14,7 @@ function drawCircle(context, x, y, r, col) {
     context.fill();
 }
 
-Renderer.prototype.render = function(entities) {
+Renderer.prototype.render = function(entities, player) {
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 	var keys = Object.keys(entities);
 	
@@ -26,4 +26,6 @@ Renderer.prototype.render = function(entities) {
 		else
 			drawCircle(this.context, ent.pos.x, ent.pos.y, 15, "blue");
 	}
+	
+	drawCircle(this.context, player.pos.x, player.pos.y, 15, "red");
 };

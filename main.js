@@ -5,7 +5,6 @@ window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAn
 var keystates = {};
 
 document.body.addEventListener('keydown', function(e) {
-	console.log("ZOMG!");
     keystates[e.key] = true;
 });
 
@@ -24,7 +23,6 @@ function bindSlider(sliderName, displayName, obj, fieldName) {
 	rangeInput.addEventListener("change", function() {
 		document.getElementById(displayName).textContent = rangeInput.value;
 		obj[fieldName] = rangeInput.value;
-		console.log("ZOMFG", FAKE_LAG);
 	}, false);
 }
 

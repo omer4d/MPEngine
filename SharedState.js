@@ -101,6 +101,7 @@ function SharedState() {
 	
 	this.reg.registerSchema("player", {
 		pos: vecPool,
+		vel: vecPool
 	});
 }
 

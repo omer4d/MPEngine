@@ -7,6 +7,7 @@ function RemoteClient(handle, player) {
 	this.player = player;
 	this.outgoingQueue = [];
 	this.lastAck = -1;
+	this.lastCmdNum = -1;
 }
 
 function buildNetSpawner(server) {
@@ -21,6 +22,7 @@ function buildNetSpawner(server) {
 		
 		entities[tmp] = reg.lookupIdByName(schemaName);
 		
+		res.id = tmp;
 		res.release = function() {
 			if(!server.incomingQueues.release)
 				server.incomingQueues.release = [];
@@ -133,6 +135,7 @@ Server.prototype.handlePlayerCommands = function() {
 		
 		client.outgoingQueue.splice(0, j);
 		client.player.handleCommands(msg.commands);
+		client.lastCmdNum = msg.commands.cmdNum;
 	}
 	
 	this.incomingQueues.playerCommands = [];
@@ -212,15 +215,18 @@ Server.prototype.update = function() {
 				type: "fullUpdate",
 				messages: client.outgoingQueue.slice(),
 				updateNum: self.updateCount,
+				playerEntId: client.player.id,
 				data: dataCpy,
-				entities: entCpy
+				entities: entCpy,
+				cmdAck: client.lastCmdNum,
 			});
 		}else {
 			self.dispatcher.send(client.handle, {
 				type: "update",
 				messages: client.outgoingQueue.slice(),
 				updateNum: self.updateCount,
-				delta: self.sharedState.data.delta(self.lastStateData)
+				delta: self.sharedState.data.delta(self.lastStateData),
+				cmdAck: client.lastCmdNum,
 			});
 		}
     });

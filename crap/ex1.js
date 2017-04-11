@@ -240,7 +240,7 @@ function Server(dispatcher) {
     var self = this;
     setInterval(function() {
         self.update();
-    }, 1000 / 30);
+    }, 1000 / 100);
 }
 
 Server.prototype.onMessage = function(senderHandle, msg) {

@@ -32,13 +32,15 @@ GameState.prototype.addPlayer = function() {
 	var r = 15;
     var player = this.netSpawn("player", {
         r: r,
-        vel: vec2(0, 0),
+		moveVec: vec2(0, 0),
         handleCommands: function(commands) {
-            this.vel.x += commands.moveX * 35;
-            this.vel.y += commands.moveY * 35;
+			this.moveVec.x = commands.moveX;
+			this.moveVec.y = commands.moveY;
         }
     });
 
+	player.vel.x = 0;
+	player.vel.y = 0;
 	player.pos.x = randf(r, this.arenaWidth - r);
 	player.pos.y = randf(r, this.arenaHeight - r);
 	
@@ -75,16 +77,23 @@ function collisionResponse(a, b, bounciness) {
     b.vel.y = dy * lenVa;
 }
 
-GameState.prototype.moveBall = function(ball, dt, friction, bounciness) {
-    var w = this.arenaWidth,
-        h = this.arenaHeight;
-
+function moveBallGeneric(ball, friction, bounciness, w, h, dt) {
     ball.pos.x += ball.vel.x * dt;
     ball.pos.y += ball.vel.y * dt;
     ball.vel.x *= inRange(ball.pos.x, ball.r, w - ball.r) ? friction : -bounciness;
     ball.vel.y *= inRange(ball.pos.y, ball.r, h - ball.r) ? friction : -bounciness;
     ball.pos.x = clamp(ball.pos.x, ball.r, w - ball.r);
     ball.pos.y = clamp(ball.pos.y, ball.r, h - ball.r);
+}
+
+GameState.prototype.moveBall = function(ball, dt, friction, bounciness) {
+	moveBallGeneric(ball, friction, bounciness, this.arenaWidth, this.arenaHeight, dt);
+}
+
+function movePlayer(player, w, h, dt) {
+	player.vel.x += player.moveVec.x * 2000 * dt;
+    player.vel.y += player.moveVec.y * 2000 * dt;
+	moveBallGeneric(player, Math.pow(Math.pow(0.1, 2), dt), 0, w, h, dt)
 }
 
 GameState.prototype.logic = function(dt) {
@@ -106,8 +115,9 @@ GameState.prototype.logic = function(dt) {
 			this.players[i].release();
 			this.players.splice(i, 1);
 		}
-		else
-			this.moveBall(this.players[i], dt, 0.87, 0);
+		else {
+			movePlayer(this.players[i], this.arenaWidth, this.arenaHeight, dt);
+		}
 	}
 
     for (i = 0; i < this.balls.length; ++i)
