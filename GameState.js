@@ -36,6 +36,7 @@ GameState.prototype.addPlayer = function() {
         handleCommands: function(commands) {
 			this.moveVec.x = commands.moveX;
 			this.moveVec.y = commands.moveY;
+			//movePlayer(this, 512, 512, 1/CLIENT_TICKRATE);
         }
     });
 
@@ -90,11 +91,19 @@ GameState.prototype.moveBall = function(ball, dt, friction, bounciness) {
 	moveBallGeneric(ball, friction, bounciness, this.arenaWidth, this.arenaHeight, dt);
 }
 
+/*
 function movePlayer(player, w, h, dt) {
 	player.vel.x += player.moveVec.x * 2000 * dt;
     player.vel.y += player.moveVec.y * 2000 * dt;
 	moveBallGeneric(player, Math.pow(Math.pow(0.1, 2), dt), 0, w, h, dt)
+}*/
+
+function movePlayer(player, w, h, dt) {
+	player.vel.x += player.moveVec.x * 2000 * dt;
+    player.vel.y += player.moveVec.y * 2000 * dt;
+	moveBallGeneric(player, Math.pow(0.1, dt), 0, w, h, dt);
 }
+
 
 GameState.prototype.logic = function(dt) {
     var w = this.arenaWidth,

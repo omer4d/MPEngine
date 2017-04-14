@@ -19,6 +19,7 @@ function Client(keystates, renderer, dispatcher) {
 	this.lastBufferedState = null;
 	this.lastHandledEventUpdateNum = -1;
 	this.sharedState = new SharedState();
+	this.updateAccum = 0;
 
 	this.playerEntId = -1;
 	
@@ -35,8 +36,13 @@ function Client(keystates, renderer, dispatcher) {
 	
 	this.nextCmdNum = 0;
 	this.cmdBuffer = [];
-	this.playerStateBuffer = [];
-	this.dtBuffer = [];
+	
+	this.updateFlag = false;
+	this.lastServerAck = -1;
+	this.px = 0;
+	this.py = 0;
+	this.vx = 0;
+	this.vy = 0;
 	
 	var player = {
 		pos: vec2(0, 0),
@@ -58,42 +64,49 @@ function Client(keystates, renderer, dispatcher) {
 			var dt = (t - self.lastTime) / 1000;
 			self.lastTime = t;
 			self.time += dt;
+			self.updateAccum += CLIENT_TICKRATE * dt;
 
-			var cmds = self.generateCommands();
+			var ups = Math.floor(self.updateAccum);
 			
-			self.cmdBuffer.push(cmds);
-			self.dtBuffer.push(dt);
-			
-			var tmp = {
-				pos: vec2(player.pos.x, player.pos.y),
-				vel: vec2(player.vel.x, player.vel.y),
-				moveVec: vec2(cmds.moveX, cmds.moveY)
-			};
-			
-			player.moveVec.x = cmds.moveX;
-			player.moveVec.y = cmds.moveY;
-			movePlayer(player, 512, 512, dt);
-
-			self.playerStateBuffer.push(tmp);
-			
-            self.dispatcher.send(self.serverHandle, {
-                type: "playerCommands",
-                commands: cmds,
-				ack: self.lastUpdateNum,
-            });
+			for(var i = 0; i < ups; ++i) {
+				if(self.updateFlag) {
+					for(var j = 0; j < self.cmdBuffer.length; ++j)
+						if(self.cmdBuffer[j].cmdNum > self.lastServerAck)
+							break;
+				
+					self.cmdBuffer.splice(0, j);// = self.cmdBuffer.slice(j);
+					self.player.pos.x = self.px;
+					self.player.pos.y = self.py;
+					self.player.vel.x = self.vx;
+					self.player.vel.y = self.vy;
+					
+					for(var z = 0; z < self.cmdBuffer.length; ++z) {
+						//console.log("WEW!");
+						self.player.moveVec.x = self.cmdBuffer[z].moveX;
+						self.player.moveVec.y = self.cmdBuffer[z].moveY;
+						movePlayer(self.player, 512, 512, 1/CLIENT_TICKRATE);
+					}
+					
+					self.updateFlag = false;
+				}
+				
+				var cmds = self.generateCommands();
+				
+				self.cmdBuffer.push(cmds);
+				
+				player.moveVec.x = cmds.moveX;
+				player.moveVec.y = cmds.moveY;
+				movePlayer(player, 512, 512, 1/CLIENT_TICKRATE);
+				
+				self.dispatcher.send(self.serverHandle, {
+					type: "playerCommands",
+					commands: cmds,
+					ack: self.lastUpdateNum,
+				});
+			}
 			
 			self.buffLerp();
-			
-			//player.moveVec.x = cmds.moveX;
-			//player.moveVec.y = cmds.moveY;
-			//movePlayer(player, 512, 512, dt);
-			
-			
-			//if(self.playerEntId >= 0 && self.sharedState.entities[self.playerEntId]) {
-				//var player2 = self.sharedState.entities[self.playerEntId];
-				//player2.pos.x = player.pos.x;
-				//player2.pos.y = player.pos.y;
-			//}
+			self.updateAccum -= ups;
 			
             renderer.render(self.sharedState.entities, self.player);
             requestAnimFrame(self.renderLoop);
@@ -222,6 +235,10 @@ Client.prototype.fullUpdate = function(sender, msg) {
 		requestAnimFrame(this.renderLoop);
 	}
 
+	//this.player.pos.x = this.sharedState.entities[this.playerEntId].pos.x;
+	//this.player.pos.y = this.sharedState.entities[this.playerEntId].pos.y;
+	//this.player.vel.x = this.sharedState.entities[this.playerEntId].vel.x;
+	//this.player.vel.y = this.sharedState.entities[this.playerEntId].vel.y;
 	this.lastUpdateNum = msg.updateNum;
 };
 
@@ -229,35 +246,7 @@ Client.prototype.update = function(sender, msg) {
 	if(msg.updateNum <= this.lastUpdateNum)
 		return;
 	
-	for(var i = 0; i < this.cmdBuffer.length; ++i)
-		if(this.cmdBuffer[i].cmdNum > msg.cmdAck)
-			break;
-		
-	this.cmdBuffer.splice(0, i);
-	this.playerStateBuffer.splice(0, i);
-	this.dtBuffer.splice(0, i);
-	
-	var start = 0;// Math.min(this.cmdBuffer.length - 1, 100);
-	
-	this.player.pos.x = this.playerStateBuffer[start].pos.x; //dest.entities[this.playerEntId].pos.x;
-	this.player.pos.y = this.playerStateBuffer[start].pos.y; //dest.entities[this.playerEntId].pos.y;
-	this.player.vel.x = this.playerStateBuffer[start].vel.x; //dest.entities[this.playerEntId].vel.x;
-	this.player.vel.y = this.playerStateBuffer[start].vel.y; //dest.entities[this.playerEntId].vel.y;
- 
-	console.log(this.playerStateBuffer.length, this.player.pos.x, this.player.pos.y);
- 
-	for(var z = start; z < this.cmdBuffer.length; ++z) {
-		this.player.moveVec.x = this.cmdBuffer[z].moveX;
-		this.player.moveVec.y = this.cmdBuffer[z].moveY;
-		movePlayer(this.player, 512, 512, this.dtBuffer[z]);
-	}
-	
-	
-	
-	
-	
 	//console.log("CMD BUFF LEN", this.cmdBuffer.length, msg.cmdAck, this.cmdBuffer[this.cmdBuffer.length - 1].cmdNum);
-	
 	var data = new SharedStateData();
 	data.copy(this.bufferedStates[this.bufferedStates.length - 1].data);
 	data.applyDelta(msg.delta);
@@ -267,6 +256,14 @@ Client.prototype.update = function(sender, msg) {
 	this.bufferedStates.push({data: data, updateNum: msg.updateNum, action: function() {
 		self.handleEvents(msg.messages);
 	}});
+
+	this.updateFlag = true;
+	this.lastServerAck = msg.cmdAck;
+	this.px = data.vecPoolData[20];
+	this.py = data.vecPoolData[21];
+	this.vx = data.vecPoolData[22];
+	this.vy = data.vecPoolData[23];
+	
 	this.lastUpdateNum = msg.updateNum;
 };
 
