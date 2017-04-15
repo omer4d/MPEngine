@@ -43,6 +43,7 @@ function Client(keystates, renderer, dispatcher) {
 	this.py = 0;
 	this.vx = 0;
 	this.vy = 0;
+	this.err = vec2(0, 0);
 	
 	var player = {
 		pos: vec2(0, 0),
@@ -75,28 +76,54 @@ function Client(keystates, renderer, dispatcher) {
 							break;
 				
 					self.cmdBuffer.splice(0, j);// = self.cmdBuffer.slice(j);
+					
+					var tmpVx = self.player.vel.x;
+					var tmpVy = self.player.vel.y;
+					var tmpPx = self.player.pos.x;
+					var tmpPy = self.player.pos.y;
 					self.player.pos.x = self.px;
 					self.player.pos.y = self.py;
 					self.player.vel.x = self.vx;
 					self.player.vel.y = self.vy;
-					
+				
 					for(var z = 0; z < self.cmdBuffer.length; ++z) {
-						//console.log("WEW!");
 						self.player.moveVec.x = self.cmdBuffer[z].moveX;
 						self.player.moveVec.y = self.cmdBuffer[z].moveY;
 						movePlayer(self.player, 512, 512, 1/CLIENT_TICKRATE);
 					}
 					
+					
+					self.err.x = tmpPx - self.player.pos.x;
+					self.err.y = tmpPy - self.player.pos.y;
+					console.log("Error", self.err.x, self.err.y);
+					self.player.vel.x = tmpVx;
+					self.player.vel.y = tmpVy;
+					
 					self.updateFlag = false;
 				}
+				
 				
 				var cmds = self.generateCommands();
 				
 				self.cmdBuffer.push(cmds);
 				
-				player.moveVec.x = cmds.moveX;
-				player.moveVec.y = cmds.moveY;
-				movePlayer(player, 512, 512, 1/CLIENT_TICKRATE);
+				self.err.x *= 0.9;
+				self.err.y *= 0.9;
+				self.player.pos.x = self.px + self.err.x;
+				self.player.pos.y = self.py + self.err.y;
+				self.player.vel.x = self.vx;
+				self.player.vel.y = self.vy;
+					
+				for(var z = 0; z < self.cmdBuffer.length; ++z) {
+					self.player.moveVec.x = self.cmdBuffer[z].moveX;
+					self.player.moveVec.y = self.cmdBuffer[z].moveY;
+					movePlayer(self.player, 512, 512, 1/CLIENT_TICKRATE);
+				}
+				
+				
+				//player.moveVec.x = cmds.moveX;
+				//player.moveVec.y = cmds.moveY;
+				//movePlayer(player, 512, 512, 1/CLIENT_TICKRATE);
 				
 				self.dispatcher.send(self.serverHandle, {
 					type: "playerCommands",
