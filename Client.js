@@ -113,7 +113,7 @@ function Client(keystates, renderer, dispatcher) {
 				self.player.pos.y = self.py + self.err.y;
 				self.player.vel.x = self.vx;
 				self.player.vel.y = self.vy;
-					
+				
 				for(var z = 0; z < self.cmdBuffer.length; ++z) {
 					self.player.moveVec.x = self.cmdBuffer[z].moveX;
 					self.player.moveVec.y = self.cmdBuffer[z].moveY;
@@ -262,10 +262,16 @@ Client.prototype.fullUpdate = function(sender, msg) {
 		requestAnimFrame(this.renderLoop);
 	}
 
-	//this.player.pos.x = this.sharedState.entities[this.playerEntId].pos.x;
-	//this.player.pos.y = this.sharedState.entities[this.playerEntId].pos.y;
-	//this.player.vel.x = this.sharedState.entities[this.playerEntId].vel.x;
-	//this.player.vel.y = this.sharedState.entities[this.playerEntId].vel.y;
+	this.player.pos.x = this.sharedState.entities[this.playerEntId].pos.x;
+	this.player.pos.y = this.sharedState.entities[this.playerEntId].pos.y;
+	this.player.vel.x = this.sharedState.entities[this.playerEntId].vel.x;
+	this.player.vel.y = this.sharedState.entities[this.playerEntId].vel.y;
+	this.px = this.sharedState.entities[this.playerEntId].pos.x;
+	this.py = this.sharedState.entities[this.playerEntId].pos.y;
+	this.vx = this.sharedState.entities[this.playerEntId].vel.x;
+	this.vy = this.sharedState.entities[this.playerEntId].vel.y;
+	
+	
 	this.lastUpdateNum = msg.updateNum;
 };
 
