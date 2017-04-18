@@ -76,11 +76,37 @@ function translateGlSeg(lumps, seg) {
 	return {x1: x1, y1: y1, x2: x2, y2: y2};
 }
 
-function findSegSector(lumps, seg) {
-	var linedef = lumps.LINEDEFS[seg.linedefIdx];
-	var sidedef = lumps.SIDEDEFS[seg.side ? linedef.negSidedefIdx : linedef.posSidedefIdx];
-	//console.log("Wew: ", linedef, seg.side);
+function findLinedefSector(lumps, linedef, side) {
+	var sidedef = lumps.SIDEDEFS[side ? linedef.negSidedefIdx : linedef.posSidedefIdx];
 	return lumps.SECTORS[sidedef.sectorIdx];
+}
+
+function findSegSector(lumps, seg) {
+	return findLinedefSector(lumps, lumps.LINEDEFS[seg.linedefIdx], seg.side);
+}
+
+function pushWall(tris, colors, x1, y1, x2, y2, h1, h2) {
+	var nx = y1 - y2, ny = x2 - x1;
+	var len = Math.sqrt(nx*nx + ny*ny);
+	var r = Math.floor((nx / len + 1) / 2 * 255);
+	var g = Math.floor((ny / len + 1) / 2 * 255);
+	
+	tris.push(x1, h1, y1);
+	tris.push(x1, h2, y1);
+	tris.push(x2, h1, y2);
+		
+	tris.push(x1, h2, y1);
+	
+	tris.push(x2, h2, y2);
+	tris.push(x2, h1, y2);
+	
+	colors.push(r, g, 0);
+	colors.push(r, g, 0);
+	colors.push(r, g, 0);
+	
+	colors.push(r, g, 0);
+	colors.push(r, g, 0);
+	colors.push(r, g, 0);
 }
 
 function wadToMesh(lumps) {
@@ -104,7 +130,8 @@ function wadToMesh(lumps) {
 		var b = Math.floor(Math.random() * 100 + 100);
 		
 		for(var j = 1; j < ssect.segNum - 1; ++j) {
-			var tseg = translateGlSeg(lumps, lumps.GL_SEGS[ssect.firstSegIdx + j]);
+			var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
+			var tseg = translateGlSeg(lumps, seg);
 			var br = 1;//0.8 + Math.random() * 0.2;
 			var r1 = Math.floor(r * br);
 			var g1 = Math.floor(g * br);
@@ -128,51 +155,58 @@ function wadToMesh(lumps) {
 		}
 	}
 	
-	mesh.setCoords(tris);
-	mesh.setColors(colors);
-	
 	/*
-	for(i = 0; i < lumps.GL_SEGS.length; ++i) {
-		var seg = lumps.GL_SEGS[i];
+	for(var i = 0; i < lumps.GL_SSECT.length; ++i) {
+		var ssect = lumps.GL_SSECT[i];
+		
+		for(var j = 0; j < ssect.segNum; ++j) {
+			var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
+			var tseg = translateGlSeg(lumps, seg);
+
+			if(seg.linedefIdx !== 0xFFFF) {
+				var linedef = lumps.LINEDEFS[seg.linedefIdx];
+				var sec1 = linedef.posSidedefIdx !== 65535 ? findLinedefSector(lumps, linedef, 0) : null;
+				var sec2 = linedef.negSidedefIdx !== 65535 ? findLinedefSector(lumps, linedef, 1) : null;
+				var x1 = tseg.x1;
+				var y1 = tseg.y1;
+				var x2 = tseg.x2;
+				var	y2 = tseg.y2;
+		
+				if(!sec1)
+					pushWall(tris, colors, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
+				else if(!sec2)
+					pushWall(tris, colors, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
+				else {
+					pushWall(tris, colors, x1, y1, x2, y2, Math.min(sec1.floorHeight, sec2.floorHeight), Math.max(sec1.floorHeight, sec2.floorHeight));
+					pushWall(tris, colors, x1, y1, x2, y2, Math.min(sec1.ceilHeight, sec2.ceilHeight), Math.max(sec1.ceilHeight, sec2.ceilHeight));
+				}
+			}
+		}
+	}*/
+	
+	for(i = 0; i < lumps.LINEDEFS.length; ++i) {
+		var linedef = lumps.LINEDEFS[i];
+		var sec1 = linedef.posSidedefIdx !== 65535 ? findLinedefSector(lumps, linedef, 0) : null;
+		var sec2 = linedef.negSidedefIdx !== 65535 ? findLinedefSector(lumps, linedef, 1) : null;
+		
 		var x1, y1, x2, y2;
-		var glVertFlag = 1 << 15;
+		x1 = lumps.VERTEXES[linedef.v1Idx].x;
+		y1 = lumps.VERTEXES[linedef.v1Idx].y;
+		x2 = lumps.VERTEXES[linedef.v2Idx].x;
+		y2 = lumps.VERTEXES[linedef.v2Idx].y;
 		
-		if(seg.v1Idx & glVertFlag) {
-			x1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].x / 65536.0;
-			y1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].y / 65536.0;
-		}else {
-			x1 = lumps.VERTEXES[seg.v1Idx].x;
-			y1 = lumps.VERTEXES[seg.v1Idx].y;
+		if(!sec1)
+			pushWall(tris, colors, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
+		else if(!sec2)
+			pushWall(tris, colors, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
+		else {
+			pushWall(tris, colors, x1, y1, x2, y2, Math.min(sec1.floorHeight, sec2.floorHeight), Math.max(sec1.floorHeight, sec2.floorHeight));
+			pushWall(tris, colors, x1, y1, x2, y2, Math.min(sec1.ceilHeight, sec2.ceilHeight), Math.max(sec1.ceilHeight, sec2.ceilHeight));
 		}
-		
-		if(seg.v2Idx & glVertFlag) {
-			x2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].x / 65536.0;
-			y2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].y / 65536.0;
-		}else {
-			x2 = lumps.VERTEXES[seg.v2Idx].x;
-			y2 = lumps.VERTEXES[seg.v2Idx].y;
-		}
-		
-		var h = 50;
-		tris.push(x1, -h, y1);
-		tris.push(x1, h, y1);
-		tris.push(x2, -h, y2);
-		
-		tris.push(x2, -h, y2);
-		tris.push(x2, h, y2);
-		tris.push(x1, h, y1);
-		
-		colors.push(255, 0, 0);
-		colors.push(255, 0, 0);
-		colors.push(255, 0, 0);
-		
-		colors.push(0, 255, 0);
-		colors.push(0, 255, 0);
-		colors.push(0, 255, 0);
 	}
 	
 	mesh.setCoords(tris);
-	mesh.setColors(colors);*/
+	mesh.setColors(colors);
 	
 	return mesh;
 }
@@ -266,7 +300,7 @@ oReq.send(null);
 
 function renderLoop() {
 	var dt = 1/60;
-	var moveSpeed = 300;
+	var moveSpeed = 500;
 	
 	if(keystates["w"]) {
 		posX += moveSpeed * Math.cos(yaw) * dt;
@@ -290,13 +324,13 @@ function renderLoop() {
 	
 	
 	if(keystates["ArrowLeft"])
-		yaw -= 1 * dt;
+		yaw -= 3 * dt;
 	if(keystates["ArrowRight"])
-		yaw += 1 * dt;
+		yaw += 3 * dt;
 	if(keystates["ArrowUp"])
-		pitch -= 1 * dt;
+		pitch -= 1.5 * dt;
 	if(keystates["ArrowDown"])
-		pitch += 1 * dt;
+		pitch += 1.5 * dt;
 	
 	
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
