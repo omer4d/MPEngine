@@ -53,7 +53,109 @@ void main() {
 `;
 
 
+function translateGlSeg(seg) {
+	var x1, y1, x2, y2;
+	var glVertFlag = 1 << 15;
+	
+	if(seg.v1Idx & glVertFlag) {
+		x1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].x / 65536.0;
+		y1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].y / 65536.0;
+	}else {
+		x1 = lumps.VERTEXES[seg.v1Idx].x;
+		y1 = lumps.VERTEXES[seg.v1Idx].y;
+	}
+	
+	if(seg.v2Idx & glVertFlag) {
+		x2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].x / 65536.0;
+		y2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].y / 65536.0;
+	}else {
+		x2 = lumps.VERTEXES[seg.v2Idx].x;
+		y2 = lumps.VERTEXES[seg.v2Idx].y;
+	}
+	
+	return {x1: x1, y1: y1, x2: x2, y2: y2};
+}
 
+function wadToMesh(lumps) {
+	var mesh = new Renderer.Mesh();
+	var tris = [];
+	var colors = [];
+	var h = 100;
+	
+	for(var i = 0; i < lumps.GL_SSECT.length; ++i) {
+		var ssect = lumps.GL_SSECT[i];
+		var seg0 = translateGlSeg(lumps.GL_SEGS[ssect.firstSegIdx]);
+		var x0 = seg0.x1, y0 = seg0.y1;
+		
+		var r = Math.floor(Math.random() * 100 + 100);
+		var g = Math.floor(Math.random() * 100 + 100);
+		var b = Math.floor(Math.random() * 100 + 100);
+		
+		for(var j = 1; j < ssect.segNum - 1; ++j) {
+			var seg = translateGlSeg(lumps.GL_SEGS[ssect.firstSegIdx + j]);
+			tris.push(x0, -h, y0);
+			tris.push(seg.x1, -h, seg.y1);
+			tris.push(seg.x2, -h, seg.y2);
+			
+			var br = 0.8 + Math.random() * 0.2;
+			var r1 = Math.floor(r * br);
+			var g1 = Math.floor(g * br);
+			var b1 = Math.floor(b * br);
+			
+			colors.push(r1, g1, b1);
+			colors.push(r1, g1, b1);
+			colors.push(r1, g1, b1);
+		}
+	}
+	
+	mesh.setCoords(tris);
+	mesh.setColors(colors);
+	
+	/*
+	for(i = 0; i < lumps.GL_SEGS.length; ++i) {
+		var seg = lumps.GL_SEGS[i];
+		var x1, y1, x2, y2;
+		var glVertFlag = 1 << 15;
+		
+		if(seg.v1Idx & glVertFlag) {
+			x1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].x / 65536.0;
+			y1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].y / 65536.0;
+		}else {
+			x1 = lumps.VERTEXES[seg.v1Idx].x;
+			y1 = lumps.VERTEXES[seg.v1Idx].y;
+		}
+		
+		if(seg.v2Idx & glVertFlag) {
+			x2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].x / 65536.0;
+			y2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].y / 65536.0;
+		}else {
+			x2 = lumps.VERTEXES[seg.v2Idx].x;
+			y2 = lumps.VERTEXES[seg.v2Idx].y;
+		}
+		
+		var h = 50;
+		tris.push(x1, -h, y1);
+		tris.push(x1, h, y1);
+		tris.push(x2, -h, y2);
+		
+		tris.push(x2, -h, y2);
+		tris.push(x2, h, y2);
+		tris.push(x1, h, y1);
+		
+		colors.push(255, 0, 0);
+		colors.push(255, 0, 0);
+		colors.push(255, 0, 0);
+		
+		colors.push(0, 255, 0);
+		colors.push(0, 255, 0);
+		colors.push(0, 255, 0);
+	}
+	
+	mesh.setCoords(tris);
+	mesh.setColors(colors);*/
+	
+	return mesh;
+}
 
 
 
@@ -92,8 +194,9 @@ var yaw = 0, pitch = 0;
 
 window.Renderer.gl = gl;
 
-var mesh = new Renderer.Mesh();
+var mesh;// = new Renderer.Mesh();
 
+/*
 mesh.setCoords([0, 0, -5,
 				0.5, 0, -5,
 				0.5, 0.5, -5,
@@ -109,8 +212,38 @@ mesh.setColors([255, 0, 0,
 				//0, 255, 0,
 				0, 255, 0]);
 
-mesh.setIndices([0, 1, 2, 0, 1, 3]);
-				
+mesh.setIndices([0, 1, 2, 0, 1, 3]);*/
+
+
+
+
+
+var oReq = new XMLHttpRequest();
+oReq.open("GET", "/zaza2.wad", true);
+oReq.responseType = "arraybuffer";
+
+var lumps;
+
+oReq.onload = function (oEvent) {
+  var arrayBuffer = oReq.response;
+  if (arrayBuffer) {
+	lumps = Wad.read(arrayBuffer);
+	console.log(lumps);
+	
+	mesh = wadToMesh(lumps);
+	
+	renderLoop();
+  }
+};
+
+oReq.send(null);
+
+
+
+
+
+
+
 function renderLoop() {
 	var dt = 1/60;
 	var moveSpeed = 300;
@@ -149,7 +282,7 @@ function renderLoop() {
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	//gl.enable(gl.CULL_FACE);
-	//gl.enable(gl.DEPTH_TEST);
+	gl.enable(gl.DEPTH_TEST);
 
 	gl.useProgram(program);
 
