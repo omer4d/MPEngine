@@ -53,7 +53,7 @@ void main() {
 `;
 
 
-function translateGlSeg(seg) {
+function translateGlSeg(lumps, seg) {
 	var x1, y1, x2, y2;
 	var glVertFlag = 1 << 15;
 	
@@ -76,6 +76,13 @@ function translateGlSeg(seg) {
 	return {x1: x1, y1: y1, x2: x2, y2: y2};
 }
 
+function findSegSector(lumps, seg) {
+	var linedef = lumps.LINEDEFS[seg.linedefIdx];
+	var sidedef = lumps.SIDEDEFS[seg.side ? linedef.negSidedefIdx : linedef.posSidedefIdx];
+	//console.log("Wew: ", linedef, seg.side);
+	return lumps.SECTORS[sidedef.sectorIdx];
+}
+
 function wadToMesh(lumps) {
 	var mesh = new Renderer.Mesh();
 	var tris = [];
@@ -84,23 +91,36 @@ function wadToMesh(lumps) {
 	
 	for(var i = 0; i < lumps.GL_SSECT.length; ++i) {
 		var ssect = lumps.GL_SSECT[i];
-		var seg0 = translateGlSeg(lumps.GL_SEGS[ssect.firstSegIdx]);
-		var x0 = seg0.x1, y0 = seg0.y1;
+		var seg = lumps.GL_SEGS[ssect.firstSegIdx];
+		var tseg = translateGlSeg(lumps, seg);
+		var x0 = tseg.x1, y0 = tseg.y1;
+		var sector = findSegSector(lumps, seg);
+		var h1 = sector.floorHeight;
+		var h2 = sector.ceilHeight;
+		console.log(h);
 		
 		var r = Math.floor(Math.random() * 100 + 100);
 		var g = Math.floor(Math.random() * 100 + 100);
 		var b = Math.floor(Math.random() * 100 + 100);
 		
 		for(var j = 1; j < ssect.segNum - 1; ++j) {
-			var seg = translateGlSeg(lumps.GL_SEGS[ssect.firstSegIdx + j]);
-			tris.push(x0, -h, y0);
-			tris.push(seg.x1, -h, seg.y1);
-			tris.push(seg.x2, -h, seg.y2);
-			
-			var br = 0.8 + Math.random() * 0.2;
+			var tseg = translateGlSeg(lumps, lumps.GL_SEGS[ssect.firstSegIdx + j]);
+			var br = 1;//0.8 + Math.random() * 0.2;
 			var r1 = Math.floor(r * br);
 			var g1 = Math.floor(g * br);
 			var b1 = Math.floor(b * br);
+			
+			tris.push(x0, h1, y0);
+			tris.push(tseg.x1, h1, tseg.y1);
+			tris.push(tseg.x2, h1, tseg.y2);
+			
+			colors.push(r1, g1, b1);
+			colors.push(r1, g1, b1);
+			colors.push(r1, g1, b1);
+			
+			tris.push(x0, h2, y0);
+			tris.push(tseg.x1, h2, tseg.y1);
+			tris.push(tseg.x2, h2, tseg.y2);
 			
 			colors.push(r1, g1, b1);
 			colors.push(r1, g1, b1);
@@ -288,12 +308,12 @@ function renderLoop() {
 
 	// Compute the projection matrix
 	var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-	var zNear = 1;
-	var zFar = 2000;
+	var zNear = 50;
+	var zFar = 20000;
 	var projectionMatrix = m4.perspective(1, aspect, zNear, zFar);
 
 	// Compute a matrix for the camera
-	var cameraMatrix =  m4.translation(posX, 0, posY);
+	var cameraMatrix =  m4.translation(posX, 100, posY);
 	cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2+yaw);
 	cameraMatrix = m4.xRotate(cameraMatrix, pitch);
 	

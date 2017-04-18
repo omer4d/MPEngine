@@ -84,7 +84,7 @@
 				fields: [
 					[ushort, ["v1Idx", "v2Idx"]],
 					[ushort, "linedefIdx"],
-					[ushort, "dir"],
+					[ushort, "side"],
 					[ushort, "partnerSeg"]
 				]
 			},
