@@ -61,7 +61,7 @@
 					[ushort, ["v1Idx", "v2Idx"]],
 					[short, "angle"],
 					[ushort, "linedefIdx"],
-					[short, "dir"],
+					[short, "side"],
 					[short, "offsOnLinedef"]
 				]
 			},
@@ -93,6 +93,22 @@
 				fields: [
 					[ushort, "segNum"],
 					[ushort, "firstSegIdx"]
+				]
+			},
+			{
+				name: "GL_NODES",
+				fields: [
+					[short, ["x", "y", "dx", "dy"]],
+					[[short, 4], ["rightAABB", "leftAABB"]],
+					[ushort, ["rightChildIdx", "leftChildIdx"]]
+				]
+			},
+			{
+				name: "NODES",
+				fields: [
+					[short, ["x", "y", "dx", "dy"]],
+					[[short, 4], ["rightAABB", "leftAABB"]],
+					[ushort, ["rightChildIdx", "leftChildIdx"]]
 				]
 			},
 		];

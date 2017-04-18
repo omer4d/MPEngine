@@ -132,7 +132,7 @@ function wadToMesh(lumps) {
 		for(var j = 1; j < ssect.segNum - 1; ++j) {
 			var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
 			var tseg = translateGlSeg(lumps, seg);
-			var br = 1;//0.8 + Math.random() * 0.2;
+			var br = 0.8 + Math.random() * 0.2;
 			var r1 = Math.floor(r * br);
 			var g1 = Math.floor(g * br);
 			var b1 = Math.floor(b * br);
@@ -211,6 +211,29 @@ function wadToMesh(lumps) {
 	return mesh;
 }
 
+function findSector(lumps, idx, point) {
+	var LEAF_FLAG = 1 << 15;
+	
+    if(idx & LEAF_FLAG) {
+        var ssector = lumps.SSECTORS[idx & ~LEAF_FLAG];
+        var seg = lumps.SEGS[ssector.firstSegIdx];
+        var linedef = lumps.LINEDEFS[seg.linedefIdx];
+        var sidedef = seg.side ? lumps.SIDEDEFS[linedef.negSidedefIdx] : lumps.SIDEDEFS[linedef.posSidedefIdx];
+        return lumps.SECTORS[sidedef.sectorIdx];
+    }else {
+        var node = lumps.NODES[idx];
+        var nx = -node.dy;
+		var ny = node.dx;
+		var dx = point.x - node.x;
+		var dy = point.y - node.y;
+		
+        if(nx*dx+ny*dy >= 0)
+            return findSector(lumps, node.leftChildIdx, point);
+        else
+            return findSector(lumps, node.rightChildIdx, point);
+    }
+}
+
 
 
 window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
@@ -273,7 +296,7 @@ mesh.setIndices([0, 1, 2, 0, 1, 3]);*/
 
 
 var oReq = new XMLHttpRequest();
-oReq.open("GET", "/zaza2.wad", true);
+oReq.open("GET", "/e1m1.wad", true);
 oReq.responseType = "arraybuffer";
 
 var lumps;
@@ -332,6 +355,8 @@ function renderLoop() {
 	if(keystates["ArrowDown"])
 		pitch += 1.5 * dt;
 	
+	var posH = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY}).floorHeight + 50;
+	
 	
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -342,12 +367,12 @@ function renderLoop() {
 
 	// Compute the projection matrix
 	var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-	var zNear = 50;
+	var zNear = 10;
 	var zFar = 20000;
-	var projectionMatrix = m4.perspective(1, aspect, zNear, zFar);
+	var projectionMatrix = m4.perspective(3.14/2*0.8, aspect, zNear, zFar);
 
 	// Compute a matrix for the camera
-	var cameraMatrix =  m4.translation(posX, 100, posY);
+	var cameraMatrix =  m4.translation(posX, posH, posY);
 	cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2+yaw);
 	cameraMatrix = m4.xRotate(cameraMatrix, pitch);
 	
