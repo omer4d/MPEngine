@@ -1,3 +1,62 @@
+function createShader(gl, type, source) {
+  var shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+  if (success) {
+    return shader;
+  }
+ 
+  console.log(gl.getShaderInfoLog(shader));
+  gl.deleteShader(shader);
+}
+
+function createProgram(gl, vertexShader, fragmentShader) {
+  var program = gl.createProgram();
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+  if (success) {
+    return program;
+  }
+ 
+  console.log(gl.getProgramInfoLog(program));
+  gl.deleteProgram(program);
+}
+
+var vertexShaderSource = `
+attribute vec4 a_position;
+attribute vec4 a_color;
+
+uniform mat4 u_matrix;
+
+varying vec4 v_color;
+
+void main() {
+  // Multiply the position by the matrix.
+  gl_Position = u_matrix * a_position;
+
+  // Pass the color to the fragment shader.
+  v_color = a_color;
+}`;
+
+var fragmentShaderSource = `
+precision mediump float;
+
+// Passed in from the vertex shader.
+varying vec4 v_color;
+
+void main() {
+   gl_FragColor = v_color;
+}
+`;
+
+
+
+
+
+
 window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
     window.setTimeout(callback, 1000 / 60);
 };
@@ -12,366 +71,114 @@ document.body.addEventListener('keyup', function(e) {
     keystates[e.key] = false;
 });
 
+
+
+
 var canvas = document.getElementById("myCanvas");
-var context = canvas.getContext("2d");
-
-var wadStructs = (function() {
-	var char = "int8";
-	var short = "int16";
-	var ushort = "uint16";
-	var int = "int32";
-	var name = ["int8", 8, {transform: "nameToString"}];
-
-	return [
-		{
-			name: "WAD_HEADER",
-			fields: [
-				[[char, 4], "id"],
-				[int, "lumpNum"],
-				[int, "dirOffs"]
-			]
-		},
-		{
-			name: "WAD_DIRENT",
-			fields: [
-				[int, "lumpOffs"],
-				[int, "lumpSize"],
-				[name, "name"]
-			]
-		},
-		{
-			name: "VERTEXES",
-			fields: [
-				[short, "x"],
-				[short, "y"]
-			]
-		},
-		{
-			name: "SECTORS",
-			fields: [
-				[short, ["floorHeight", "ceilHeight"]],
-				[name, ["floorTexName", "ceilTexName"]],
-				[short, "light"],
-				[ushort, ["special", "tag"]]
-			]
-		},
-		{
-			name: "SIDEDEFS",
-			fields: [
-				[short, ["xOffs", "yOffs"]],
-				[name, ["hiTexName", "lowTexName", "midTexName"]],
-				[ushort, "sectorIdx"]
-			]
-		},
-		{
-			name: "LINEDEFS",
-			fields: [
-				[ushort, ["v1Idx", "v2Idx"]],
-				[ushort, ["flags", "specialFlag", "sectorTag"]],
-				[ushort, ["posSidedefIdx", "negSidedefIdx"]]
-			]
-		},
-		{
-			name: "SEGS",
-			fields: [
-				[ushort, ["v1Idx", "v2Idx"]],
-				[short, "angle"],
-				[ushort, "linedefIdx"],
-				[short, "dir"],
-				[short, "offsOnLinedef"]
-			]
-		},
-		{
-			name: "SSECTORS",
-			fields: [
-				[short, "segNum"],
-				[short, "firstSegIdx"]
-			]
-		},
-		{
-			name: "GL_VERT",
-			fields: [
-				[int, "x"],
-				[int, "y"]
-			]
-		},
-		{
-			name: "GL_SEGS",
-			fields: [
-				[ushort, ["v1Idx", "v2Idx"]],
-				[ushort, "linedefIdx"],
-				[ushort, "dir"],
-				[ushort, "partnerSeg"]
-			]
-		},
-		{
-			name: "GL_SSECT",
-			fields: [
-				[ushort, "segNum"],
-				[ushort, "firstSegIdx"]
-			]
-		},
-	];
-})();
-
-function BufferReader(buffer) {
-  this.dataView = new DataView(buffer);
-  this.pos = 0;
-}
-
-BufferReader.prototype.readInt8 = function() {
-  var res = this.dataView.getInt8(this.pos, true);
-  this.pos += 1;
-  return res;
-};
-
-BufferReader.prototype.readInt16 = function() {
-  var res = this.dataView.getInt16(this.pos, true);
-  this.pos += 2;
-  return res;
-};
-
-BufferReader.prototype.readUint16 = function() {
-  var res = this.dataView.getUint16(this.pos, true);
-  this.pos += 2;
-  return res;
-};
-
-BufferReader.prototype.readInt32 = function() {
-  var res = this.dataView.getInt32(this.pos, true);
-  this.pos += 4;
-  return res;
-};
-
-BufferReader.prototype.setPos = function(bytes) {
-	this.pos = bytes;
-}
-
-BufferReader.prototype.eof = function() {
-	return this.pos >= this.dataView.byteLength;
-}
-
-function genReader(struct) {
-  var code = "(function(reader, ctx) {\n";
-  code += "var obj = {};\n";
-  
-  for(var i = 0; i < struct.fields.length; ++i) {
-    var field = struct.fields[i];
-    var fieldType = field[0].constructor === Array ? field[0][0] : field[0];
-    var elementCount = field[0].constructor === Array ? field[0][1] : 0;
-    var fieldNames = field[1].constructor === Array ? field[1] : [field[1]];
-    var readcall;
-    
-    switch(fieldType) {
-      case "int8":
-        readcall = "reader.readInt8()";
-        break;
-      case "int16":
-        readcall = "reader.readInt16()";
-        break;
-	  case "uint16":
-		readcall = "reader.readUint16()";
-		break;
-      case "int32":
-        readcall = "reader.readInt32()";
-        break;
-      default:
-        throw "WTF!";
-    }
-    
-	for(var j = 0; j < fieldNames.length; ++j) {
-		var val = "";
-		
-		if(elementCount) {
-		  val += "[";
-		  
-		  for(var k = 0; k < elementCount; ++k) {
-			val += readcall + ",\n";
-		  }
-		  val += "]";
-		}else {
-		  val += readcall;
-		}
-		
-		if(field[0].constructor === Array && field[0][2] && field[0][2].transform)
-			val = "ctx." + field[0][2].transform + "(" + val + ")";
-		
-		code += "obj['" + fieldNames[j] + "'] = " + val + ";\n";
-	}
-  }
-  
-  return code + "\nreturn obj;\n})";
-}
-
-function structSize(struct) {
-  var total = 0;
-	
-  for(var i = 0; i < struct.fields.length; ++i) {
-    var fieldEntry = struct.fields[i];
-    var fieldType = fieldEntry[0].constructor === Array ? fieldEntry[0][0] : fieldEntry[0];
-    var elementCount = fieldEntry[0].constructor === Array ? fieldEntry[0][1] : 1;
-    var fieldNum = fieldEntry[1].constructor === Array ? fieldEntry[1].length : 1;
-    var typeBytes;
-    
-    switch(fieldType) {
-      case "int8":
-        typeBytes = 1;
-        break;
-      case "int16":
-        typeBytes = 2;
-        break;
-	  case "uint16":
-        typeBytes = 2;
-        break;
-      case "int32":
-        typeBytes = 4;
-        break;
-      default:
-        throw "WTF!";
-    }
-	
-	total += typeBytes * fieldNum * elementCount;
-  }
-  
-  return total;
-}
+var gl = canvas.getContext("webgl");
 
 
-console.log(genReader(wadStructs[0]));
-console.log(structSize(wadStructs[3]));
+var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+var program = createProgram(gl, vertexShader, fragmentShader);
 
-function genReaders(structs) {
-  var readers = {};
-  for(var i = 0; i < structs.length; ++i) {
-    readers[structs[i].name] = eval(genReader(structs[i]));
-  }
-  return readers;
-}
+var positionLocation = gl.getAttribLocation(program, "a_position");
+var colorLocation = gl.getAttribLocation(program, "a_color");
+var matrixLocation = gl.getUniformLocation(program, "u_matrix");
 
-function findStruct(structs, name) {
-	for(var i = 0; i < structs.length; ++i)
-		if(structs[i].name === name)
-			return structs[i];
-	return null;
-}
+var posX = 0;
+var posY = 0;
+var yaw = 0, pitch = 0;
 
-readers = genReaders(wadStructs);
+window.Renderer.gl = gl;
 
+var mesh = new Renderer.Mesh();
 
-var oReq = new XMLHttpRequest();
-oReq.open("GET", "/zaza2.wad", true);
-oReq.responseType = "arraybuffer";
+mesh.setCoords([0, 0, -5,
+				0.5, 0, -5,
+				0.5, 0.5, -5,
+				
+				//0, 0, -1,
+				//0.5, 0, -1,
+				0.5, -0.5, -5,]);
 
+mesh.setColors([255, 0, 0,
+				255, 255, 0,
+				255, 0, 255,
+				//0, 255, 0,
+				//0, 255, 0,
+				0, 255, 0]);
 
-var lumps = {};
-
-oReq.onload = function (oEvent) {
-  var arrayBuffer = oReq.response;
-  if (arrayBuffer) {
-    var reader = new BufferReader(arrayBuffer);
-	var ctx = {
-		nameToString: function(x) {
-			for(var i = 0; i < 8; ++i)
-				if(x[i] === 0)
-					break;
-			return String.fromCharCode.apply(null, x.slice(0, i));
-		}
-	};
-	var header = readers.WAD_HEADER(reader, ctx);
-	var dirs = [];
-	
-	reader.setPos(header.dirOffs);
-	console.log(header);
-	
-	while(!reader.eof()) {
-		var dir = readers.WAD_DIRENT(reader, ctx);
-		dirs.push(dir);
-		console.log(dir);
-	}
-	
-	for(var i = 0; i < dirs.length; ++i) {
-		if(readers[dirs[i].name]) {
-			reader.setPos(dirs[i].lumpOffs);
-			
-			var n;
-			
-			if(dirs[i].name === "GL_VERT") {
-				var verBytes = [reader.readInt8(), reader.readInt8(), reader.readInt8(), reader.readInt8()];
-				var ver = String.fromCharCode.apply(null, verBytes);
-				if(ver !== "gNd2")
-					throw "Unsupported glBsp version: " + ver;
-				n = (dirs[i].lumpSize - 4) / structSize(findStruct(wadStructs, dirs[i].name));
-			}
-			else {
-				n = dirs[i].lumpSize / structSize(findStruct(wadStructs, dirs[i].name));
-			}
-			
-			var lump = [];
-			lumps[dirs[i].name] = lump;
-			
-			for(var j = 0; j < n; ++j) {
-				lump.push(readers[dirs[i].name](reader, ctx));
-			}
-		}
-	}
-	
-	console.log(lumps);
-	renderLoop();
-  }
-};
-
-oReq.send(null);
-
-
-
+mesh.setIndices([0, 1, 2, 0, 1, 3]);
+				
 function renderLoop() {
-	var i;
+	var dt = 1/60;
+	var moveSpeed = 300;
 	
-	context.clearRect(0, 0, canvas.width, canvas.height);
-	
-	/*
-	for(i = 0; i < lumps.SEGS.length; ++i) {
-		var seg = lumps.SEGS[i];
+	if(keystates["w"]) {
+		posX += moveSpeed * Math.cos(yaw) * dt;
+		posY += moveSpeed * Math.sin(yaw) * dt;
+	}
 		
-		context.beginPath();
-		context.moveTo(lumps.VERTEXES[seg.v1Idx].x / 5 + 256, lumps.VERTEXES[seg.v1Idx].y / 5 + 256);
-		context.lineTo(lumps.VERTEXES[seg.v2Idx].x / 5 + 256, lumps.VERTEXES[seg.v2Idx].y / 5 + 256);
-		context.stroke();
-	}*/
-	
-	for(i = 0; i < lumps.GL_SEGS.length; ++i) {
-		var seg = lumps.GL_SEGS[i];
-		var x1, y1, x2, y2;
-		var glVertFlag = 1 << 15;
-		
-		if(seg.v1Idx & glVertFlag) {
-			x1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].x / 65536.0;
-			y1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].y / 65536.0;
-		}else {
-			x1 = lumps.VERTEXES[seg.v1Idx].x;
-			y1 = lumps.VERTEXES[seg.v1Idx].y;
-		}
-		
-		if(seg.v2Idx & glVertFlag) {
-			x2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].x / 65536.0;
-			y2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].y / 65536.0;
-		}else {
-			x2 = lumps.VERTEXES[seg.v2Idx].x;
-			y2 = lumps.VERTEXES[seg.v2Idx].y;
-		}
-		
-		context.beginPath();
-		context.moveTo(x1 / 5 + 256, y1 / 5 + 256);
-		context.lineTo(x2 / 5 + 256, y2 / 5 + 256);
-		context.stroke();
+	if(keystates["s"]) {
+		posX -= moveSpeed * Math.cos(yaw) * dt;
+		posY -= moveSpeed * Math.sin(yaw) * dt;
 	}
 	
-	for(i = 0; i < lumps.VERTEXES.length; ++i) {
-		context.beginPath();
-		context.arc(lumps.VERTEXES[i].x / 5 + 256, lumps.VERTEXES[i].y / 5 + 256, 1, 0, 2 * Math.PI, false);
-		context.fillStyle = "red";
-		context.fill();
+	if(keystates["d"]) {
+		posX += -moveSpeed * Math.sin(yaw) * dt;
+		posY += moveSpeed * Math.cos(yaw) * dt;
 	}
+		
+	if(keystates["a"]) {
+		posX -= -moveSpeed * Math.sin(yaw) * dt;
+		posY -= moveSpeed * Math.cos(yaw) * dt;
+	}
+	
+	
+	if(keystates["ArrowLeft"])
+		yaw -= 1 * dt;
+	if(keystates["ArrowRight"])
+		yaw += 1 * dt;
+	if(keystates["ArrowUp"])
+		pitch -= 1 * dt;
+	if(keystates["ArrowDown"])
+		pitch += 1 * dt;
+	
+	
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	//gl.enable(gl.CULL_FACE);
+	//gl.enable(gl.DEPTH_TEST);
+
+	gl.useProgram(program);
+
+	// Compute the projection matrix
+	var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+	var zNear = 1;
+	var zFar = 2000;
+	var projectionMatrix = m4.perspective(1, aspect, zNear, zFar);
+
+	// Compute a matrix for the camera
+	var cameraMatrix =  m4.translation(posX, 0, posY);
+	cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2+yaw);
+	cameraMatrix = m4.xRotate(cameraMatrix, pitch);
+	
+	var viewMatrix = m4.inverse(cameraMatrix);
+	var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
+
+	 gl.uniformMatrix4fv(matrixLocation, false, viewProjectionMatrix);
+
+	 mesh.draw({coords: positionLocation, colors: colorLocation});
+	 
+	 /*
+	 // Draw the geometry.
+	 var primitiveType = gl.TRIANGLES;
+	 var offset = 0;
+	 var count = 16 * 6;
+	 gl.drawArrays(primitiveType, offset, count);*/
 	
 	requestAnimFrame(renderLoop);
-};
+}
+
+renderLoop();
