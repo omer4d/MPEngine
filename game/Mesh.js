@@ -57,7 +57,7 @@
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 	}
 	
-	Mesh.prototype.draw = function(locations) {
+	Mesh.prototype.draw = function(locations, start, num) {
 		gl.enableVertexAttribArray(locations.coords);
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.coordBuff);
 		gl.vertexAttribPointer(locations.coords, 3, gl.FLOAT, false, 0, 0);
@@ -78,7 +78,7 @@
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuff);
 			gl.drawElements(gl.TRIANGLES, this.indexNum, gl.UNSIGNED_SHORT, 0);
 		}else {
-			gl.drawArrays(gl.TRIANGLES, 0, this.vertexNum);
+			gl.drawArrays(gl.TRIANGLES, start || 0, num || this.vertexNum);
 		}
 	}
 	

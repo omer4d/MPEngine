@@ -255,19 +255,23 @@ function wadToMesh(lumps) {
 		}
 	}
 	
+	var submeshes = [];
+	var textures = Object.keys(tris);
+	
 	var jointTris = [];
 	var jointColors = [];
 	var jointTexCoords = [];
 	
-	Object.keys(tris).forEach(function(key) {
+	textures.forEach(function(key) {
+		submeshes.push({tex: key, start: jointTris.length/3, len: tris[key].length/3});
 		Array.prototype.push.apply(jointTris, tris[key]);
 	});
 	
-	Object.keys(colors).forEach(function(key) {
+	textures.forEach(function(key) {
 		Array.prototype.push.apply(jointColors, colors[key]);
 	});
 	
-	Object.keys(texcoords).forEach(function(key) {
+	textures.forEach(function(key) {
 		Array.prototype.push.apply(jointTexCoords, texcoords[key]);
 	});
 	
@@ -275,7 +279,11 @@ function wadToMesh(lumps) {
 	mesh.setColors(jointColors);
 	mesh.setTexCoords(jointTexCoords);
 	
-	return mesh;
+	return {
+		mesh: mesh,
+		submeshes: submeshes,
+		textures: textures
+	};
 }
 
 
@@ -361,7 +369,7 @@ var yaw = 0, pitch = 0;
 window.Renderer.gl = gl;
 
 var mesh;// = new Renderer.DynamicMesh(10000);
-
+var submeshes;
 
 
 
@@ -381,7 +389,10 @@ oReq.onload = function (oEvent) {
 	lumps = Wad.read(arrayBuffer);
 	console.log(lumps);
 	
-	mesh = wadToMesh(lumps);
+	var res = wadToMesh(lumps);
+	mesh = res.mesh;
+	submeshes = res.submeshes;
+	//console.log(res.submeshes);
 	
 	var image = new Image();
 	image.src = "data/patch.png";
@@ -527,8 +538,9 @@ function renderLoop() {
 	 gl.uniformMatrix4fv(matrixLocation, false, viewProjectionMatrix);
 	 gl.uniform1i(textureLocation, 0);
 
-	  
-	 mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+	 for(var i = 0; i < submeshes.length; ++i)
+		mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation}, submeshes[i].start, submeshes[i].len);
+	 //mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
 	
 	++frameCount;
 	requestAnimFrame(renderLoop);
