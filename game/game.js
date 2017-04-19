@@ -186,8 +186,8 @@ function wadToMesh(lumps) {
 	
 	for(i = 0; i < lumps.LINEDEFS.length; ++i) {
 		var linedef = lumps.LINEDEFS[i];
-		var sec1 = linedef.posSidedefIdx !== 65535 ? findLinedefSector(lumps, linedef, 0) : null;
-		var sec2 = linedef.negSidedefIdx !== 65535 ? findLinedefSector(lumps, linedef, 1) : null;
+		var sec1 = linedef.posSidedefIdx !== 0xFFFF ? findLinedefSector(lumps, linedef, 0) : null;
+		var sec2 = linedef.negSidedefIdx !== 0xFFFF ? findLinedefSector(lumps, linedef, 1) : null;
 		
 		var x1, y1, x2, y2;
 		x1 = lumps.VERTEXES[linedef.v1Idx].x;
@@ -211,15 +211,11 @@ function wadToMesh(lumps) {
 	return mesh;
 }
 
-function findSector(lumps, idx, point) {
+function findSubsector(lumps, idx, point) {
 	var LEAF_FLAG = 1 << 15;
 	
     if(idx & LEAF_FLAG) {
-        var ssector = lumps.SSECTORS[idx & ~LEAF_FLAG];
-        var seg = lumps.SEGS[ssector.firstSegIdx];
-        var linedef = lumps.LINEDEFS[seg.linedefIdx];
-        var sidedef = seg.side ? lumps.SIDEDEFS[linedef.negSidedefIdx] : lumps.SIDEDEFS[linedef.posSidedefIdx];
-        return lumps.SECTORS[sidedef.sectorIdx];
+        return lumps.SSECTORS[idx & ~LEAF_FLAG];
     }else {
         var node = lumps.NODES[idx];
         var nx = -node.dy;
@@ -228,10 +224,18 @@ function findSector(lumps, idx, point) {
 		var dy = point.y - node.y;
 		
         if(nx*dx+ny*dy >= 0)
-            return findSector(lumps, node.leftChildIdx, point);
+            return findSubsector(lumps, node.leftChildIdx, point);
         else
-            return findSector(lumps, node.rightChildIdx, point);
+            return findSubsector(lumps, node.rightChildIdx, point);
     }
+}
+
+function findSector(lumps, idx, point) {
+	var ssector = findSubsector(lumps, idx, point);
+	var seg = lumps.SEGS[ssector.firstSegIdx];
+    var linedef = lumps.LINEDEFS[seg.linedefIdx];
+    var sidedef = seg.side ? lumps.SIDEDEFS[linedef.negSidedefIdx] : lumps.SIDEDEFS[linedef.posSidedefIdx];
+    return lumps.SECTORS[sidedef.sectorIdx];
 }
 
 
@@ -265,8 +269,10 @@ var positionLocation = gl.getAttribLocation(program, "a_position");
 var colorLocation = gl.getAttribLocation(program, "a_color");
 var matrixLocation = gl.getUniformLocation(program, "u_matrix");
 
-var posX = 0;
-var posY = 0;
+var posX = 1032;
+var posY = -3200;
+var velX = 0;
+var velY = 0;
 var yaw = 0, pitch = 0;
 
 window.Renderer.gl = gl;
@@ -317,45 +323,123 @@ oReq.send(null);
 
 
 
+function segSide(lumps, seg, point) {
+	var v1 = lumps.VERTEXES[seg.v1Idx];
+	var v2 = lumps.VERTEXES[seg.v2Idx];
+	var nx = -(v2.y - v1.y);
+	var ny = v2.x - v1.x;
+	var dx = point.x - v1.x;
+	var dy = point.y - v1.y;
+	
+	return dx*nx + dy*ny < 0 ? -1 : 1;
+}
+
+function insideSubector(lumps, subsec, point) {
+	for(var i = 0; i < subsec.segNum; ++i) {
+		var seg = lumps.SEGS[subsec.firstSegIdx + i];
+		var linedef = lumps.LINEDEFS[seg.linedefIdx];
+		
+		if(linedef.posSidedefIdx === 0xFFFF && segSide(lumps, seg, point) === -1)
+			return false;
+		if(linedef.negSidedefIdx === 0xFFFF && segSide(lumps, seg, point) === 1)
+			return false;
+	}
+	
+	return true;
+}
+
+function leavingSector(lumps, pos1, pos2) {
+	var oldSub = findSubsector(lumps, lumps.NODES.length - 1, pos1);
+	var newSub = findSubsector(lumps, lumps.NODES.length - 1, pos2);
+	
+	//console.log(oldSub, newSub);
+	/*
+	if(oldSub === newSub) {
+		for(var i = 0; i < oldSub.segNum; ++i) {
+			var seg = lumps.SEGS[oldSub.firstSegIdx + i];
+			var linedef = lumps.LINEDEFS[seg.linedefIdx];
+			
+			if(linedef.posSidedefIdx === 0xFFFF || linedef.negSidedefIdx === 0xFFFF) {
+				if(segSide(lumps, seg, pos1) !== segSide(lumps, seg, pos2))
+					return true;
+			}
+		}
+	}*/
+	
+	return insideSubector(lumps, oldSub, pos1) && !insideSubector(lumps, newSub, pos2);
+	//return false;
+}
 
 
 
 
 function renderLoop() {
 	var dt = 1/60;
-	var moveSpeed = 500;
+	var moveSpeed = 50;
+	var newPosX, newPosY;
+	
+	//console.log(keystates);
+	
+	//if(keystates["LeftShift"]) {
+	//	moveSpeed
+	//}
+	moveSpeed = keystates["e"] ? 5 : 50;
 	
 	if(keystates["w"]) {
-		posX += moveSpeed * Math.cos(yaw) * dt;
-		posY += moveSpeed * Math.sin(yaw) * dt;
+		velX += moveSpeed * Math.cos(yaw);
+		velY += moveSpeed * Math.sin(yaw);
 	}
-		
+	
 	if(keystates["s"]) {
-		posX -= moveSpeed * Math.cos(yaw) * dt;
-		posY -= moveSpeed * Math.sin(yaw) * dt;
+		velX += -moveSpeed * Math.cos(yaw);
+		velY += -moveSpeed * Math.sin(yaw);
 	}
 	
 	if(keystates["d"]) {
-		posX += -moveSpeed * Math.sin(yaw) * dt;
-		posY += moveSpeed * Math.cos(yaw) * dt;
+		velX += -moveSpeed * Math.sin(yaw);
+		velY += moveSpeed * Math.cos(yaw);
 	}
 		
 	if(keystates["a"]) {
-		posX -= -moveSpeed * Math.sin(yaw) * dt;
-		posY -= moveSpeed * Math.cos(yaw) * dt;
+		velX += moveSpeed * Math.sin(yaw);
+		velY += -moveSpeed * Math.cos(yaw);
 	}
 	
+	var newPosX = posX + velX * dt;
+	var newPosY = posY + velY * dt;
+	
+	
+	
+	var oldSec = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY});
+	var newSec = findSector(lumps, lumps.NODES.length - 1, {x: newPosX, y: newPosY});
+	
+	var h1 = oldSec.floorHeight;
+	
+	//if(leavingSector(lumps, {x: posX, y: posY}, {x: newPosX, y: newPosY}))
+		//console.log("ZOOOMG!!!");
+	
+	//if(oldSec != newSec)
+		//console.log("Changed sectors: ", oldSec, newSec);
+	
+	if((!leavingSector(lumps, {x: posX, y: posY}, {x: newPosX, y: newPosY}) &&
+		newSec.floorHeight - h1 < 30 && newSec.ceilHeight > h1 + 60) || keystates["q"]) {
+		posX = newPosX;
+		posY = newPosY;
+	}
+	
+	velX *= 0.9;
+	velY *= 0.9;
 	
 	if(keystates["ArrowLeft"])
 		yaw -= 3 * dt;
 	if(keystates["ArrowRight"])
 		yaw += 3 * dt;
 	if(keystates["ArrowUp"])
-		pitch -= 1.5 * dt;
+		pitch -= 3 * dt;
 	if(keystates["ArrowDown"])
-		pitch += 1.5 * dt;
+		pitch += 3 * dt;
 	
-	var posH = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY}).floorHeight + 50;
+	var posH = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY}).floorHeight + 40;
 	
 	
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
