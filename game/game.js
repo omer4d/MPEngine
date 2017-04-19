@@ -7,7 +7,7 @@ function createShader(gl, type, source) {
     return shader;
   }
  
-  console.log(gl.getShaderInfoLog(shader));
+  console.log(source, "\n", gl.getShaderInfoLog(shader));
   gl.deleteShader(shader);
 }
 
@@ -28,27 +28,30 @@ function createProgram(gl, vertexShader, fragmentShader) {
 var vertexShaderSource = `
 attribute vec4 a_position;
 attribute vec4 a_color;
+attribute vec2 a_texcoord;
 
 uniform mat4 u_matrix;
 
 varying vec4 v_color;
+varying vec2 v_texcoord;
 
 void main() {
-  // Multiply the position by the matrix.
   gl_Position = u_matrix * a_position;
-
-  // Pass the color to the fragment shader.
   v_color = a_color;
+  v_texcoord = a_texcoord;
 }`;
 
 var fragmentShaderSource = `
 precision mediump float;
 
-// Passed in from the vertex shader.
 varying vec4 v_color;
+varying vec2 v_texcoord;
+
+uniform sampler2D u_texture;
 
 void main() {
-   gl_FragColor = v_color;
+   gl_FragColor = texture2D(u_texture, v_texcoord) * v_color;
+   //gl_FragColor = v_color;
 }
 `;
 
@@ -85,7 +88,7 @@ function findSegSector(lumps, seg) {
 	return findLinedefSector(lumps, lumps.LINEDEFS[seg.linedefIdx], seg.side);
 }
 
-function pushWall(tris, colors, x1, y1, x2, y2, h1, h2) {
+function pushWall(tris, texcoords, colors, x1, y1, x2, y2, h1, h2) {
 	var nx = y1 - y2, ny = x2 - x1;
 	var len = Math.sqrt(nx*nx + ny*ny);
 	var r = Math.floor((nx / len + 1) / 2 * 255);
@@ -94,11 +97,18 @@ function pushWall(tris, colors, x1, y1, x2, y2, h1, h2) {
 	tris.push(x1, h1, y1);
 	tris.push(x1, h2, y1);
 	tris.push(x2, h1, y2);
+	
+	texcoords.push(0, 0);
+	texcoords.push(0, 1);
+	texcoords.push(1, 0);
 		
 	tris.push(x1, h2, y1);
-	
 	tris.push(x2, h2, y2);
 	tris.push(x2, h1, y2);
+	
+	texcoords.push(0, 1);
+	texcoords.push(1, 1);
+	texcoords.push(1, 0);
 	
 	colors.push(r, g, 0);
 	colors.push(r, g, 0);
@@ -112,6 +122,7 @@ function pushWall(tris, colors, x1, y1, x2, y2, h1, h2) {
 function wadToMesh(lumps) {
 	var mesh = new Renderer.Mesh();
 	var tris = [];
+	var texcoords = [];
 	var colors = [];
 	var h = 100;
 	
@@ -141,6 +152,11 @@ function wadToMesh(lumps) {
 			tris.push(tseg.x1, h1, tseg.y1);
 			tris.push(tseg.x2, h1, tseg.y2);
 			
+			texcoords.push(x0 / 64, y0 / 64);
+			texcoords.push(tseg.x1 / 64, tseg.y1 / 64);
+			texcoords.push(tseg.x2 / 64, tseg.y2 / 64);
+			
+			
 			colors.push(r1, g1, b1);
 			colors.push(r1, g1, b1);
 			colors.push(r1, g1, b1);
@@ -148,6 +164,10 @@ function wadToMesh(lumps) {
 			tris.push(x0, h2, y0);
 			tris.push(tseg.x1, h2, tseg.y1);
 			tris.push(tseg.x2, h2, tseg.y2);
+			
+			texcoords.push(x0 / 64, y0 / 64);
+			texcoords.push(tseg.x1 / 64, tseg.y1 / 64);
+			texcoords.push(tseg.x2 / 64, tseg.y2 / 64);
 			
 			colors.push(r1, g1, b1);
 			colors.push(r1, g1, b1);
@@ -196,17 +216,18 @@ function wadToMesh(lumps) {
 		y2 = lumps.VERTEXES[linedef.v2Idx].y;
 		
 		if(!sec1)
-			pushWall(tris, colors, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
+			pushWall(tris, texcoords, colors, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
 		else if(!sec2)
-			pushWall(tris, colors, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
+			pushWall(tris, texcoords, colors, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
 		else {
-			pushWall(tris, colors, x1, y1, x2, y2, Math.min(sec1.floorHeight, sec2.floorHeight), Math.max(sec1.floorHeight, sec2.floorHeight));
-			pushWall(tris, colors, x1, y1, x2, y2, Math.min(sec1.ceilHeight, sec2.ceilHeight), Math.max(sec1.ceilHeight, sec2.ceilHeight));
+			pushWall(tris, texcoords, colors, x1, y1, x2, y2, Math.min(sec1.floorHeight, sec2.floorHeight), Math.max(sec1.floorHeight, sec2.floorHeight));
+			pushWall(tris, texcoords, colors, x1, y1, x2, y2, Math.min(sec1.ceilHeight, sec2.ceilHeight), Math.max(sec1.ceilHeight, sec2.ceilHeight));
 		}
 	}
 	
 	mesh.setCoords(tris);
 	mesh.setColors(colors);
+	mesh.setTexCoords(texcoords);
 	
 	return mesh;
 }
@@ -268,6 +289,9 @@ var program = createProgram(gl, vertexShader, fragmentShader);
 var positionLocation = gl.getAttribLocation(program, "a_position");
 var colorLocation = gl.getAttribLocation(program, "a_color");
 var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+var texcoordLocation = gl.getAttribLocation(program, "a_texcoord");
+var textureLocation = gl.getUniformLocation(program, "u_texture");
+
 
 var posX = 1032;
 var posY = -3200;
@@ -302,10 +326,13 @@ mesh.setIndices([0, 1, 2, 0, 1, 3]);*/
 
 
 var oReq = new XMLHttpRequest();
-oReq.open("GET", "/zaza2.wad", true);
+oReq.open("GET", "/e1m1.wad", true);
 oReq.responseType = "arraybuffer";
 
 var lumps;
+var texture = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, texture);
+
 
 oReq.onload = function (oEvent) {
   var arrayBuffer = oReq.response;
@@ -315,7 +342,20 @@ oReq.onload = function (oEvent) {
 	
 	mesh = wadToMesh(lumps);
 	
-	renderLoop();
+	var image = new Image();
+	image.src = "data/patch.png";
+	image.addEventListener('load', function() {
+	  // Now that the image has loaded make copy it to the texture.
+	  console.log("img wh: ", image.width, image.height);
+	  
+	  gl.bindTexture(gl.TEXTURE_2D, texture);
+	  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
+	  gl.generateMipmap(gl.TEXTURE_2D);
+	  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+	  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+	  
+	  renderLoop();
+	});
   }
 };
 
@@ -444,8 +484,9 @@ function renderLoop() {
 	var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
 	 gl.uniformMatrix4fv(matrixLocation, false, viewProjectionMatrix);
+	  gl.uniform1i(textureLocation, 0);
 
-	 mesh.draw({coords: positionLocation, colors: colorLocation});
+	 mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
 	 
 	 /*
 	 // Draw the geometry.
@@ -456,5 +497,3 @@ function renderLoop() {
 	
 	requestAnimFrame(renderLoop);
 }
-
-renderLoop();

@@ -7,6 +7,7 @@
 		this.coordBuff = null;
 		this.colorBuff = null;
 		this.indexBuff = null;
+		this.texCoordBuff = null;
 		
 		this.vertexNum = 0;
 		this.indexNum = 0;
@@ -34,6 +35,16 @@
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	}
 	
+	Mesh.prototype.setTexCoords = function(texCoords) {
+		if(this.texCoordBuff)
+			gl.deleteBuffer(this.texCoordBuff);
+		
+		this.texCoordBuff = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordBuff);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	}
+	
 	Mesh.prototype.setIndices = function(indices) {
 		if(this.indexBuff)
 			gl.deleteBuffer(this.indexBuff);
@@ -55,6 +66,12 @@
 			gl.enableVertexAttribArray(locations.colors);
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuff);
 			gl.vertexAttribPointer(locations.colors, 3, gl.UNSIGNED_BYTE, true, 0, 0);
+		}
+		
+		if(locations.texCoords) {
+			gl.enableVertexAttribArray(locations.texCoords);
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordBuff);
+			gl.vertexAttribPointer(locations.texCoords, 2, gl.FLOAT, false, 0, 0);
 		}
 		
 		if(this.indexBuff) {
