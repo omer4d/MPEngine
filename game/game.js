@@ -302,7 +302,7 @@ mesh.setIndices([0, 1, 2, 0, 1, 3]);*/
 
 
 var oReq = new XMLHttpRequest();
-oReq.open("GET", "/e1m1.wad", true);
+oReq.open("GET", "/zaza2.wad", true);
 oReq.responseType = "arraybuffer";
 
 var lumps;
@@ -322,16 +322,18 @@ oReq.onload = function (oEvent) {
 oReq.send(null);
 
 
-
-function segSide(lumps, seg, point) {
+function pointSegDist(lumps, seg, point) {
 	var v1 = lumps.VERTEXES[seg.v1Idx];
 	var v2 = lumps.VERTEXES[seg.v2Idx];
 	var nx = -(v2.y - v1.y);
 	var ny = v2.x - v1.x;
 	var dx = point.x - v1.x;
 	var dy = point.y - v1.y;
-	
-	return dx*nx + dy*ny < 0 ? -1 : 1;
+	return dx*nx + dy*ny;
+}
+
+function segSide(lumps, seg, point) {
+	return pointSegDist(lumps, seg, point) < 0 ? -1 : 1;
 }
 
 function insideSubector(lumps, subsec, point) {
@@ -351,23 +353,7 @@ function insideSubector(lumps, subsec, point) {
 function leavingSector(lumps, pos1, pos2) {
 	var oldSub = findSubsector(lumps, lumps.NODES.length - 1, pos1);
 	var newSub = findSubsector(lumps, lumps.NODES.length - 1, pos2);
-	
-	//console.log(oldSub, newSub);
-	/*
-	if(oldSub === newSub) {
-		for(var i = 0; i < oldSub.segNum; ++i) {
-			var seg = lumps.SEGS[oldSub.firstSegIdx + i];
-			var linedef = lumps.LINEDEFS[seg.linedefIdx];
-			
-			if(linedef.posSidedefIdx === 0xFFFF || linedef.negSidedefIdx === 0xFFFF) {
-				if(segSide(lumps, seg, pos1) !== segSide(lumps, seg, pos2))
-					return true;
-			}
-		}
-	}*/
-	
 	return insideSubector(lumps, oldSub, pos1) && !insideSubector(lumps, newSub, pos2);
-	//return false;
 }
 
 
@@ -414,12 +400,6 @@ function renderLoop() {
 	var newSec = findSector(lumps, lumps.NODES.length - 1, {x: newPosX, y: newPosY});
 	
 	var h1 = oldSec.floorHeight;
-	
-	//if(leavingSector(lumps, {x: posX, y: posY}, {x: newPosX, y: newPosY}))
-		//console.log("ZOOOMG!!!");
-	
-	//if(oldSec != newSec)
-		//console.log("Changed sectors: ", oldSec, newSec);
 	
 	if((!leavingSector(lumps, {x: posX, y: posY}, {x: newPosX, y: newPosY}) &&
 		newSec.floorHeight - h1 < 30 && newSec.ceilHeight > h1 + 60) || keystates["q"]) {

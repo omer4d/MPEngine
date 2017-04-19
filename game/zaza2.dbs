@@ -26,5 +26,27 @@ maps
 		
 	}
 	
+	
+	E1M1
+	{
+		
+		grid
+		{
+			backoffsety = 0;
+			backoffsetx = 0;
+			backscalex = 100;
+			gridsize = 32;
+			background = "";
+			backsource = 0;
+			backscaley = 100;
+		}
+		
+		
+		resources
+		{
+		}
+		
+	}
+	
 }
 
