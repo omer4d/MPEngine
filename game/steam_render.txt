@@ -1,0 +1,111 @@
+function pushWall2(mesh, x1, y1, x2, y2, h1, h2) {
+	var nx = y1 - y2, ny = x2 - x1;
+	var len = Math.sqrt(nx*nx + ny*ny);
+	var r = Math.floor((nx / len + 1) / 2 * 128 + 127);
+	var g = Math.floor((ny / len + 1) / 2 * 128 + 127);
+	
+	mesh.coord(x1, h1, y1);
+	mesh.coord(x1, h2, y1);
+	mesh.coord(x2, h1, y2);
+	
+	mesh.texCoord(0, 0);
+	mesh.texCoord(0, 1);
+	mesh.texCoord(1, 0);
+		
+	mesh.coord(x1, h2, y1);
+	mesh.coord(x2, h2, y2);
+	mesh.coord(x2, h1, y2);
+	
+	mesh.texCoord(0, 1);
+	mesh.texCoord(1, 1);
+	mesh.texCoord(1, 0);
+	
+	mesh.color(r, g, 0);
+	mesh.color(r, g, 0);
+	mesh.color(r, g, 0);
+	
+	mesh.color(r, g, 0);
+	mesh.color(r, g, 0);
+	mesh.color(r, g, 0);
+}
+
+function renderMap(mesh, lumps) {
+	var h = 100;
+	
+	mesh.begin();
+	
+	for(var i = 0; i < lumps.GL_SSECT.length; ++i) {
+		var ssect = lumps.GL_SSECT[i];
+		var seg = lumps.GL_SEGS[ssect.firstSegIdx];
+		var tseg = translateGlSeg(lumps, seg);
+		var x0 = tseg.x1, y0 = tseg.y1;
+		var sector = findSegSector(lumps, seg);
+		var h1 = sector.floorHeight;
+		var h2 = sector.ceilHeight;
+		
+		var r = Math.floor(Math.random() * 100 + 100);
+		var g = Math.floor(Math.random() * 100 + 100);
+		var b = Math.floor(Math.random() * 100 + 100);
+		
+		for(var j = 1; j < ssect.segNum - 1; ++j) {
+			var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
+			var tseg = translateGlSeg(lumps, seg);
+			var br = 0.8 + Math.random() * 0.2;
+			var r1 = Math.floor(r * br);
+			var g1 = Math.floor(g * br);
+			var b1 = Math.floor(b * br);
+			
+			mesh.coord(x0, h1, y0);
+			mesh.coord(tseg.x1, h1, tseg.y1);
+			mesh.coord(tseg.x2, h1, tseg.y2);
+			
+			mesh.texCoord(x0 / 64, y0 / 64);
+			mesh.texCoord(tseg.x1 / 64, tseg.y1 / 64);
+			mesh.texCoord(tseg.x2 / 64, tseg.y2 / 64);
+			
+			
+			mesh.color(r1, g1, b1);
+			mesh.color(r1, g1, b1);
+			mesh.color(r1, g1, b1);
+			
+			mesh.coord(x0, h2, y0);
+			mesh.coord(tseg.x1, h2, tseg.y1);
+			mesh.coord(tseg.x2, h2, tseg.y2);
+			
+			mesh.texCoord(x0 / 64, y0 / 64);
+			mesh.texCoord(tseg.x1 / 64, tseg.y1 / 64);
+			mesh.texCoord(tseg.x2 / 64, tseg.y2 / 64);
+			
+			mesh.color(r1, g1, b1);
+			mesh.color(r1, g1, b1);
+			mesh.color(r1, g1, b1);
+		}
+	}
+	
+	mesh.flush({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+	
+	mesh.begin();
+
+	for(i = 0; i < lumps.LINEDEFS.length; ++i) {
+		var linedef = lumps.LINEDEFS[i];
+		var sec1 = linedef.posSidedefIdx !== 0xFFFF ? findLinedefSector(lumps, linedef, 0) : null;
+		var sec2 = linedef.negSidedefIdx !== 0xFFFF ? findLinedefSector(lumps, linedef, 1) : null;
+		
+		var x1, y1, x2, y2;
+		x1 = lumps.VERTEXES[linedef.v1Idx].x;
+		y1 = lumps.VERTEXES[linedef.v1Idx].y;
+		x2 = lumps.VERTEXES[linedef.v2Idx].x;
+		y2 = lumps.VERTEXES[linedef.v2Idx].y;
+		
+		if(!sec1)
+			pushWall2(mesh, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
+		else if(!sec2)
+			pushWall2(mesh, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
+		else {
+			pushWall2(mesh, x1, y1, x2, y2, Math.min(sec1.floorHeight, sec2.floorHeight), Math.max(sec1.floorHeight, sec2.floorHeight));
+			pushWall2(mesh, x1, y1, x2, y2, Math.min(sec1.ceilHeight, sec2.ceilHeight), Math.max(sec1.ceilHeight, sec2.ceilHeight));
+		}
+	}
+	
+	 mesh.flush({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+}
