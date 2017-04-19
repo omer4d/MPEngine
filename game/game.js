@@ -109,8 +109,9 @@ function wadToMesh(lumps) {
 		
 		var nx = y1 - y2, ny = x2 - x1;
 		var len = Math.sqrt(nx*nx + ny*ny);
-		var r = Math.floor((nx / len + 1) / 2 * 128 + 127);
-		var g = Math.floor((ny / len + 1) / 2 * 128 + 127);
+		var r = 255;//Math.floor((nx / len + 1) / 2 * 128 + 127);
+		var g = 255;//Math.floor((ny / len + 1) / 2 * 128 + 127);
+		var b = 255;
 		
 		var tr = tris[name];
 		var col = colors[name];
@@ -132,13 +133,13 @@ function wadToMesh(lumps) {
 		tex.push(1, 1);
 		tex.push(1, 0);
 		
-		col.push(r, g, 0);
-		col.push(r, g, 0);
-		col.push(r, g, 0);
+		col.push(r, g, b);
+		col.push(r, g, b);
+		col.push(r, g, b);
 		
-		col.push(r, g, 0);
-		col.push(r, g, 0);
-		col.push(r, g, 0);
+		col.push(r, g, b);
+		col.push(r, g, b);
+		col.push(r, g, b);
 	}
 	
 	for(var i = 0; i < lumps.GL_SSECT.length; ++i) {
@@ -158,9 +159,9 @@ function wadToMesh(lumps) {
 			var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
 			var tseg = translateGlSeg(lumps, seg);
 			var br = 0.8 + Math.random() * 0.2;
-			var r1 = Math.floor(r * br);
-			var g1 = Math.floor(g * br);
-			var b1 = Math.floor(b * br);
+			var r1 = 255;//Math.floor(r * br);
+			var g1 = 255;//Math.floor(g * br);
+			var b1 = 255;//Math.floor(b * br);
 			
 			// floor
 			initTex(sector.floorTexName);
@@ -370,7 +371,7 @@ window.Renderer.gl = gl;
 
 var mesh;// = new Renderer.DynamicMesh(10000);
 var submeshes;
-
+var textures;
 
 
 
@@ -383,6 +384,43 @@ var texture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, texture);
 
 
+
+function loadTextures(textureNames, done) {
+	var count = 0;
+	var textures = {};
+	
+	var callback = function(e) {
+		var image = e.target;
+		var texture = gl.createTexture();
+		
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
+		gl.generateMipmap(gl.TEXTURE_2D);
+		
+		textures[image.name] = texture;
+		++count;
+		
+		if(count === textureNames.length)
+			done(textures);
+	};
+	
+	var errorCallback = function(e) {
+		++count;
+		if(count === textureNames.length)
+			done(textures);
+	}
+	
+	for(var i = 0; i < textureNames.length; ++i) {
+		var image = new Image();
+		image.src = "data/textures/" + textureNames[i] + ".png";
+		image.name = textureNames[i];
+		image.addEventListener('load', callback);
+		image.addEventListener('error', errorCallback);
+	}
+}
+
+
+
 oReq.onload = function (oEvent) {
   var arrayBuffer = oReq.response;
   if (arrayBuffer) {
@@ -392,13 +430,19 @@ oReq.onload = function (oEvent) {
 	var res = wadToMesh(lumps);
 	mesh = res.mesh;
 	submeshes = res.submeshes;
-	//console.log(res.submeshes);
+	console.log(res.submeshes);
 	
+	loadTextures(res.textures, function(t) {
+		//console.log(textures);
+		textures = t;
+		renderLoop();
+	});
+	
+	/*
 	var image = new Image();
 	image.src = "data/patch.png";
-	image.addEventListener('load', function() {
-	  // Now that the image has loaded make copy it to the texture.
-	  console.log("img wh: ", image.width, image.height);
+	image.addEventListener('load', function(event) {
+	  console.log("img wh: ", event.target.width, event.target.height);
 	  
 	  gl.bindTexture(gl.TEXTURE_2D, texture);
 	  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
@@ -406,12 +450,15 @@ oReq.onload = function (oEvent) {
 	  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
 	  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
 	  
-	  renderLoop();
-	});
+	  
+	});*/
   }
 };
 
 oReq.send(null);
+
+/*
+*/
 
 
 function pointSegDist(lumps, seg, point) {
@@ -538,8 +585,10 @@ function renderLoop() {
 	 gl.uniformMatrix4fv(matrixLocation, false, viewProjectionMatrix);
 	 gl.uniform1i(textureLocation, 0);
 
-	 for(var i = 0; i < submeshes.length; ++i)
+	 for(var i = 0; i < submeshes.length; ++i) {
+		 gl.bindTexture(gl.TEXTURE_2D, textures[submeshes[i].tex]);
 		mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation}, submeshes[i].start, submeshes[i].len);
+	 }
 	 //mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
 	
 	++frameCount;
