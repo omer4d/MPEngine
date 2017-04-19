@@ -91,8 +91,8 @@ function findSegSector(lumps, seg) {
 function pushWall(tris, texcoords, colors, x1, y1, x2, y2, h1, h2) {
 	var nx = y1 - y2, ny = x2 - x1;
 	var len = Math.sqrt(nx*nx + ny*ny);
-	var r = Math.floor((nx / len + 1) / 2 * 255);
-	var g = Math.floor((ny / len + 1) / 2 * 255);
+	var r = Math.floor((nx / len + 1) / 2 * 128 + 127);
+	var g = Math.floor((ny / len + 1) / 2 * 128 + 127);
 	
 	tris.push(x1, h1, y1);
 	tris.push(x1, h2, y1);
@@ -276,6 +276,12 @@ document.body.addEventListener('keyup', function(e) {
 });
 
 
+var frameCount = 0;
+var fpsCounter = document.getElementById("fpsCounter");
+setInterval(function() {
+	fpsCounter.textContent = "FPS: " + frameCount;
+	frameCount = 0;
+}, 1000);
 
 
 var canvas = document.getElementById("myCanvas");
@@ -495,5 +501,6 @@ function renderLoop() {
 	 var count = 16 * 6;
 	 gl.drawArrays(primitiveType, offset, count);*/
 	
+	++frameCount;
 	requestAnimFrame(renderLoop);
 }
