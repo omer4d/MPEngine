@@ -50,10 +50,39 @@ varying vec2 v_texcoord;
 uniform sampler2D u_texture;
 
 void main() {
-	float z = v_color.x; //pow(v_color.x, gl_FragCoord.z * 5.0);
 	
-   gl_FragColor = vec4(texture2D(u_texture, v_texcoord).xyz * z, 1.0); //* (1.0 - gl_FragCoord.z);
+	/*
+	//float z = pow(v_color.x, 1.0/gl_FragCoord.z);
+	float t = max(50.0-pow(z, 1.0)*200.0, -0.5);
+	
+	float br = 0.0;
+
+	if(gl_FragCoord.x < 400.0)
+		br = pow(v_color.r, t)*v_color.r;
+	else
+		br = v_color.r;
+	
+   gl_FragColor = vec4(vec3(texture2D(u_texture, v_texcoord).xyz * br    ) , 1); //vec4(texture2D(u_texture, v_texcoord).xyz * z, 1.0); //* (1.0 - gl_FragCoord.z);
    //gl_FragColor = v_color;
+   */
+   
+   
+   
+	vec3 t = texture2D(u_texture, v_texcoord).xyz;
+	float br = v_color.r;
+   	float z = (1.0/(1.0 - gl_FragCoord.z) - 1.0)/5.0;
+   
+   //if(gl_FragCoord.x < 400.0)
+	   
+   
+	  //gl_FragColor = vec4(t * pow(br, min(pow(z+0.7, 1.5), 2.5)) * 1.1 + 0.05, 1.0);
+	  
+	  
+	  
+	//else
+	  gl_FragColor = vec4(t * br, 1.0);
+
+  
 }
 `;
 
@@ -497,10 +526,13 @@ function loadTextures(textureNames, done) {
 		
 		if(ispow2(image.width) && ispow2(image.height)) {
 			gl.generateMipmap(gl.TEXTURE_2D);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		}
 			
 		else {
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 			
 			//if(!ispow2(image.height))
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -527,7 +559,8 @@ function loadTextures(textureNames, done) {
 	for(var i = 0; i < textureNames.length; ++i) {
 		var image = new Image();
 		
-		//image.src = "data/test.png";
+		
+		//image.src = "data/grid.png";
 		image.src = "data/textures/" + textureNames[i] + ".png";
 		
 		image.name = textureNames[i];
