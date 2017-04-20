@@ -50,7 +50,9 @@ varying vec2 v_texcoord;
 uniform sampler2D u_texture;
 
 void main() {
-   gl_FragColor = texture2D(u_texture, v_texcoord) * v_color;
+	float z = v_color.x; //pow(v_color.x, gl_FragCoord.z * 5.0);
+	
+   gl_FragColor = vec4(texture2D(u_texture, v_texcoord).xyz * z, 1.0); //* (1.0 - gl_FragCoord.z);
    //gl_FragColor = v_color;
 }
 `;
@@ -135,18 +137,31 @@ function wadToMesh(lumps, textures) {
 		texcoords[name] = texcoords[name] || [];
 	};
 	
-	var pushWall = function(name, alignTop, x1, y1, x2, y2, h1, h2, offsU, offsV, texTop) {
+	var pushWall = function(name, alignTop, x1, y1, x2, y2, h1, h2, sidedef, texTop) {
 		tris[name] = tris[name] || [];
 		colors[name] = colors[name] || [];
 		texcoords[name] = texcoords[name] || [];
+		
+		var offsU = sidedef.xOffs;
+		var	offsV = sidedef.yOffs;
 		
 		var nx = y1 - y2, ny = x2 - x1;
 		var dw = Math.sqrt(nx*nx + ny*ny);
 		var dh = h2 - h1;
 		
-		var r = 255;//Math.floor((nx / len + 1) / 2 * 128 + 127);
-		var g = 255;//Math.floor((ny / len + 1) / 2 * 128 + 127);
-		var b = 255;
+		var lightDirX = 1;
+		var lightDirY = 0.5;
+		var lightDirLen = Math.sqrt(lightDirX*lightDirX + lightDirY*lightDirY);
+		lightDirX /= lightDirLen;
+		lightDirY /= lightDirLen;
+		nx /= dw;
+		ny /= dw;
+		
+		//var dp = lumps.SECTORS[sidedef.sectorIdx].light; //1;// Math.max(lightDirX*nx + lightDirY * ny, 0);
+		
+		var r = lumps.SECTORS[sidedef.sectorIdx].light;//200 + Math.floor(55*dp); //Math.floor((nx / len + 1) / 2 * 128 + 127);
+		var g = lumps.SECTORS[sidedef.sectorIdx].light;//200 + Math.floor(55*dp); //Math.floor((ny / len + 1) / 2 * 128 + 127);
+		var b = lumps.SECTORS[sidedef.sectorIdx].light;//200 + Math.floor(55*dp);
 		
 		var tr = tris[name];
 		var col = colors[name];
@@ -221,17 +236,17 @@ function wadToMesh(lumps, textures) {
 		var h1 = sector.floorHeight;
 		var h2 = sector.ceilHeight;
 		
-		var r = Math.floor(Math.random() * 100 + 100);
-		var g = Math.floor(Math.random() * 100 + 100);
-		var b = Math.floor(Math.random() * 100 + 100);
+		var r = sector.light;//Math.floor(Math.random() * 100 + 100);
+		var g = sector.light;//Math.floor(Math.random() * 100 + 100);
+		var b = sector.light;//Math.floor(Math.random() * 100 + 100);
 		
 		for(var j = 1; j < ssect.segNum - 1; ++j) {
 			var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
 			var tseg = translateGlSeg(lumps, seg);
 			var br = 0.8 + Math.random() * 0.2;
-			var r1 = 255;//Math.floor(r * br);
-			var g1 = 255;//Math.floor(g * br);
-			var b1 = 255;//Math.floor(b * br);
+			var r1 = r;//255;//Math.floor(r * br);
+			var g1 = r;//255;//Math.floor(g * br);
+			var b1 = r;//255;//Math.floor(b * br);
 			
 			// floor
 			initTex(sector.floorTexName);
@@ -313,24 +328,22 @@ function wadToMesh(lumps, textures) {
 		var uu = linedef.flags & Wad.UPPER_UNPEGGED;
 		
 		if(!sidedef1)
-			pushWall(sidedef2.midTexName, !lu, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight, sidedef2.xOffs, sidedef2.yOffs);
+			pushWall(sidedef2.midTexName, !lu, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight, sidedef2);
 		else if(!sec2)
-			pushWall(sidedef1.midTexName, !lu, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight, sidedef1.xOffs, sidedef1.yOffs);
+			pushWall(sidedef1.midTexName, !lu, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight, sidedef1);
 		else {
 			if(sec1.floorHeight < sec2.floorHeight)
 				pushWall(sidedef1.lowTexName, true, x1, y1, x2, y2, sec1.floorHeight, sec2.floorHeight,
-							sidedef1.xOffs, sidedef1.yOffs, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
+							sidedef1, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
 			else
 				pushWall(sidedef2.lowTexName, true, x1, y1, x2, y2, sec2.floorHeight, sec1.floorHeight,
-							sidedef2.xOffs, sidedef2.yOffs, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
+							sidedef2, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
 
 			
 			if(sec1.ceilHeight > sec2.ceilHeight)
-				pushWall(sidedef1.hiTexName, uu, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight,
-							sidedef1.xOffs, sidedef1.yOffs);
+				pushWall(sidedef1.hiTexName, uu, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight, sidedef1);
 			else
-				pushWall(sidedef2.hiTexName, uu, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight,
-							sidedef2.xOffs, sidedef2.yOffs);
+				pushWall(sidedef2.hiTexName, uu, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight, sidedef2);
 		}
 	}
 	
@@ -513,7 +526,10 @@ function loadTextures(textureNames, done) {
 	
 	for(var i = 0; i < textureNames.length; ++i) {
 		var image = new Image();
+		
+		//image.src = "data/test.png";
 		image.src = "data/textures/" + textureNames[i] + ".png";
+		
 		image.name = textureNames[i];
 		image.addEventListener('load', callback);
 		image.addEventListener('error', errorCallback);
