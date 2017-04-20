@@ -90,6 +90,39 @@ function findSegSector(lumps, seg) {
 
 
 
+function genTextureNameList(lumps) {
+	var textures = {"error_missing_texture": true, "error_bad_format": true};
+	
+	for(var i = 0; i < lumps.SECTORS.length; ++i) {
+		var sector = lumps.SECTORS[i];
+		textures[sector.floorTexName] = true;
+		textures[sector.ceilTexName] = true;
+	}
+	
+	for(i = 0; i < lumps.LINEDEFS.length; ++i) {
+		var linedef = lumps.LINEDEFS[i];
+		var sidedef1 = linedef.posSidedefIdx !== 0xFFFF ? lumps.SIDEDEFS[linedef.posSidedefIdx] : null;
+		var sidedef2 = linedef.negSidedefIdx !== 0xFFFF ? lumps.SIDEDEFS[linedef.negSidedefIdx] : null;
+		
+		if(sidedef1) {
+			textures[sidedef1.lowTexName] = true;
+			textures[sidedef1.midTexName] = true;
+			textures[sidedef1.hiTexName] = true;
+		}
+		
+		if(sidedef2) {
+			textures[sidedef2.lowTexName] = true;
+			textures[sidedef2.midTexName] = true;
+			textures[sidedef2.hiTexName] = true;
+		}
+	}
+	
+	if("-" in textures)
+		delete textures["-"];
+	
+	return Object.keys(textures);
+}
+
 function wadToMesh(lumps) {
 	var mesh = new Renderer.Mesh();
 	var tris = {};
@@ -116,22 +149,23 @@ function wadToMesh(lumps) {
 		var tr = tris[name];
 		var col = colors[name];
 		var tex = texcoords[name];
+		var dh = h2 - h1;
 		
 		tr.push(x1, h1, y1);
 		tr.push(x1, h2, y1);
 		tr.push(x2, h1, y2);
 		
+		tex.push(0, dh/64);
 		tex.push(0, 0);
-		tex.push(0, 1);
-		tex.push(1, 0);
+		tex.push(len/64, dh/64);
 			
 		tr.push(x1, h2, y1);
 		tr.push(x2, h2, y2);
 		tr.push(x2, h1, y2);
 		
-		tex.push(0, 1);
-		tex.push(1, 1);
-		tex.push(1, 0);
+		tex.push(0, 0);
+		tex.push(len/64, 0);
+		tex.push(len/64, dh/64);
 		
 		col.push(r, g, b);
 		col.push(r, g, b);
@@ -250,9 +284,9 @@ function wadToMesh(lumps) {
 				pushWall(sidedef2.lowTexName, x1, y1, x2, y2, sec2.floorHeight, sec1.floorHeight);
 
 			if(sec1.ceilHeight > sec2.ceilHeight)
-				pushWall(sidedef2.midTexName, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight);
+				pushWall(sidedef1.hiTexName, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight);
 			else
-				pushWall(sidedef1.midTexName, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight);
+				pushWall(sidedef2.hiTexName, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight);
 		}
 	}
 	
@@ -383,7 +417,9 @@ var lumps;
 var texture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, texture);
 
-
+function ispow2(x) {
+	return (~x & (x - 1)) === (x - 1);
+}
 
 function loadTextures(textureNames, done) {
 	var count = 0;
@@ -397,7 +433,11 @@ function loadTextures(textureNames, done) {
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
 		gl.generateMipmap(gl.TEXTURE_2D);
 		
-		textures[image.name] = texture;
+		if(ispow2(image.width) && ispow2(image.height))
+			textures[image.name] = {handle: texture, width: image.width, height: image.height};
+		else
+			console.log("Warning: " + image.name + " is a non-pow2 texture.");
+		
 		++count;
 		
 		if(count === textureNames.length)
@@ -432,7 +472,7 @@ oReq.onload = function (oEvent) {
 	submeshes = res.submeshes;
 	console.log(res.submeshes);
 	
-	loadTextures(res.textures, function(t) {
+	loadTextures(genTextureNameList(lumps), function(t) {
 		//console.log(textures);
 		textures = t;
 		renderLoop();
@@ -586,7 +626,11 @@ function renderLoop() {
 	 gl.uniform1i(textureLocation, 0);
 
 	 for(var i = 0; i < submeshes.length; ++i) {
-		 gl.bindTexture(gl.TEXTURE_2D, textures[submeshes[i].tex]);
+		 if(textures[submeshes[i].tex])
+			gl.bindTexture(gl.TEXTURE_2D, textures[submeshes[i].tex].handle);
+		else
+			gl.bindTexture(gl.TEXTURE_2D, textures["error_missing_texture"].handle);
+	 
 		mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation}, submeshes[i].start, submeshes[i].len);
 	 }
 	 //mesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
