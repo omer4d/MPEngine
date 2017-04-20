@@ -135,7 +135,7 @@ function wadToMesh(lumps, textures) {
 		texcoords[name] = texcoords[name] || [];
 	};
 	
-	var pushWall = function(name, alignTop, x1, y1, x2, y2, h1, h2, texTop) {
+	var pushWall = function(name, alignTop, x1, y1, x2, y2, h1, h2, offsU, offsV, texTop) {
 		tris[name] = tris[name] || [];
 		colors[name] = colors[name] || [];
 		texcoords[name] = texcoords[name] || [];
@@ -155,10 +155,10 @@ function wadToMesh(lumps, textures) {
 		var tw = textures[name] ? textures[name].width : 64;
 		var th = textures[name] ? textures[name].height : 64;
 		
-		var u0 = 0;
-		var u1 = dw/tw;
-		var v0 = (alignTop ? 1-dh/th : 0) - (texTop ? texTop - h2 : 0)/th;
-		var v1 = (alignTop ? 1 : dh/th) - (texTop ? texTop - h2 : 0)/th;
+		var u0 = offsU / tw;
+		var u1 = (dw + offsU)/tw;
+		var v0 = (alignTop ? 1-dh/th : 0) - ((texTop ? texTop - h2 : 0) + offsV)/th;
+		var v1 = (alignTop ? 1 : dh/th) - ((texTop ? texTop - h2 : 0) + offsV)/th;
 		
 		tr.push(x1, h1, y1);
 		tr.push(x1, h2, y1);
@@ -313,20 +313,24 @@ function wadToMesh(lumps, textures) {
 		var uu = linedef.flags & Wad.UPPER_UNPEGGED;
 		
 		if(!sidedef1)
-			pushWall(sidedef2.midTexName, !lu, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
+			pushWall(sidedef2.midTexName, !lu, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight, sidedef2.xOffs, sidedef2.yOffs);
 		else if(!sec2)
-			pushWall(sidedef1.midTexName, !lu, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
+			pushWall(sidedef1.midTexName, !lu, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight, sidedef1.xOffs, sidedef1.yOffs);
 		else {
 			if(sec1.floorHeight < sec2.floorHeight)
-				pushWall(sidedef1.lowTexName, true, x1, y1, x2, y2, sec1.floorHeight, sec2.floorHeight, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
+				pushWall(sidedef1.lowTexName, true, x1, y1, x2, y2, sec1.floorHeight, sec2.floorHeight,
+							sidedef1.xOffs, sidedef1.yOffs, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
 			else
-				pushWall(sidedef2.lowTexName, true, x1, y1, x2, y2, sec2.floorHeight, sec1.floorHeight, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
+				pushWall(sidedef2.lowTexName, true, x1, y1, x2, y2, sec2.floorHeight, sec1.floorHeight,
+							sidedef2.xOffs, sidedef2.yOffs, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
 
 			
 			if(sec1.ceilHeight > sec2.ceilHeight)
-				pushWall(sidedef1.hiTexName, uu, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight);
+				pushWall(sidedef1.hiTexName, uu, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight,
+							sidedef1.xOffs, sidedef1.yOffs);
 			else
-				pushWall(sidedef2.hiTexName, uu, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight);
+				pushWall(sidedef2.hiTexName, uu, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight,
+							sidedef2.xOffs, sidedef2.yOffs);
 		}
 	}
 	
