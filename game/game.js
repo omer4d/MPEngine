@@ -425,7 +425,7 @@ setInterval(function() {
 
 
 var canvas = document.getElementById("myCanvas");
-var gl = canvas.getContext("webgl");
+var gl = canvas.getContext("webgl", {antialias: true, depth: true });
 
 
 var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
@@ -439,11 +439,11 @@ var texcoordLocation = gl.getAttribLocation(program, "a_texcoord");
 var textureLocation = gl.getUniformLocation(program, "u_texture");
 
 
-//var posX = 1032;
-//var posY = -3200;
+var posX = 1032;
+var posY = -3200;
 
-var posX = 200;
-var posY = -360;
+//var posX = 200;
+//var posY = -360;
 
 var velX = 0;
 var velY = 0;
@@ -480,12 +480,24 @@ function loadTextures(textureNames, done) {
 		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
-		gl.generateMipmap(gl.TEXTURE_2D);
 		
-		if(ispow2(image.width) && ispow2(image.height))
-			textures[image.name] = {handle: texture, width: image.width, height: image.height};
-		else
-			console.log("Warning: " + image.name + " is a non-pow2 texture.");
+		
+		if(ispow2(image.width) && ispow2(image.height)) {
+			gl.generateMipmap(gl.TEXTURE_2D);
+		}
+			
+		else {
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			
+			//if(!ispow2(image.height))
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			//if(!ispow2(image.width))
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			
+			//console.log("Warning: " + image.name + " is a non-pow2 texture.");
+		}
+		
+		textures[image.name] = {handle: texture, width: image.width, height: image.height};
 		
 		++count;
 		
@@ -657,7 +669,7 @@ function renderLoop() {
 
 	// Compute the projection matrix
 	var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-	var zNear = 10;
+	var zNear = 25;
 	var zFar = 20000;
 	var projectionMatrix = m4.perspective(3.14/2*0.8, aspect, zNear, zFar);
 
