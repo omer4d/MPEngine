@@ -123,7 +123,7 @@ function genTextureNameList(lumps) {
 	return Object.keys(textures);
 }
 
-function wadToMesh(lumps) {
+function wadToMesh(lumps, textures) {
 	var mesh = new Renderer.Mesh();
 	var tris = {};
 	var colors = {};
@@ -150,22 +150,24 @@ function wadToMesh(lumps) {
 		var col = colors[name];
 		var tex = texcoords[name];
 		var dh = h2 - h1;
+		var tw = textures[name] ? textures[name].width : 64;
+		var th = textures[name] ? textures[name].height : 64;
 		
 		tr.push(x1, h1, y1);
 		tr.push(x1, h2, y1);
 		tr.push(x2, h1, y2);
 		
-		tex.push(0, dh/64);
+		tex.push(0, dh/th);
 		tex.push(0, 0);
-		tex.push(len/64, dh/64);
+		tex.push(len/tw, dh/th);
 			
 		tr.push(x1, h2, y1);
 		tr.push(x2, h2, y2);
 		tr.push(x2, h1, y2);
 		
 		tex.push(0, 0);
-		tex.push(len/64, 0);
-		tex.push(len/64, dh/64);
+		tex.push(len/tw, 0);
+		tex.push(len/tw, dh/th);
 		
 		col.push(r, g, b);
 		col.push(r, g, b);
@@ -467,14 +469,13 @@ oReq.onload = function (oEvent) {
 	lumps = Wad.read(arrayBuffer);
 	console.log(lumps);
 	
-	var res = wadToMesh(lumps);
-	mesh = res.mesh;
-	submeshes = res.submeshes;
-	console.log(res.submeshes);
-	
 	loadTextures(genTextureNameList(lumps), function(t) {
-		//console.log(textures);
 		textures = t;
+		
+		var res = wadToMesh(lumps, textures);
+		mesh = res.mesh;
+		submeshes = res.submeshes;
+		
 		renderLoop();
 	});
 	
