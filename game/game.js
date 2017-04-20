@@ -27,7 +27,7 @@ function createProgram(gl, vertexShader, fragmentShader) {
 
 var GRID_TEXTURES = false;
 //var WAD_NAME = "/zaza2.wad";
-var WAD_NAME = "/e1m1.wad";
+var WAD_NAME = "/e1m2.wad";
 
 var vertexShaderSource = `
 attribute vec4 a_position;
