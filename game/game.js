@@ -135,13 +135,15 @@ function wadToMesh(lumps, textures) {
 		texcoords[name] = texcoords[name] || [];
 	};
 	
-	var pushWall = function(name, x1, y1, x2, y2, h1, h2) {
+	var pushWall = function(name, alignTop, x1, y1, x2, y2, h1, h2, texTop) {
 		tris[name] = tris[name] || [];
 		colors[name] = colors[name] || [];
 		texcoords[name] = texcoords[name] || [];
 		
 		var nx = y1 - y2, ny = x2 - x1;
-		var len = Math.sqrt(nx*nx + ny*ny);
+		var dw = Math.sqrt(nx*nx + ny*ny);
+		var dh = h2 - h1;
+		
 		var r = 255;//Math.floor((nx / len + 1) / 2 * 128 + 127);
 		var g = 255;//Math.floor((ny / len + 1) / 2 * 128 + 127);
 		var b = 255;
@@ -149,25 +151,57 @@ function wadToMesh(lumps, textures) {
 		var tr = tris[name];
 		var col = colors[name];
 		var tex = texcoords[name];
-		var dh = h2 - h1;
+		
 		var tw = textures[name] ? textures[name].width : 64;
 		var th = textures[name] ? textures[name].height : 64;
+		
+		var u0 = 0;
+		var u1 = dw/tw;
+		var v0 = (alignTop ? 1-dh/th : 0) - (texTop ? texTop - h2 : 0)/th;
+		var v1 = (alignTop ? 1 : dh/th) - (texTop ? texTop - h2 : 0)/th;
 		
 		tr.push(x1, h1, y1);
 		tr.push(x1, h2, y1);
 		tr.push(x2, h1, y2);
 		
-		tex.push(0, dh/th);
-		tex.push(0, 0);
-		tex.push(len/tw, dh/th);
-			
+		tex.push(u0, v0);
+		tex.push(u0, v1);
+		tex.push(u1, v0);
+		
 		tr.push(x1, h2, y1);
 		tr.push(x2, h2, y2);
 		tr.push(x2, h1, y2);
 		
+		tex.push(u0, v1);
+		tex.push(u1, v1);
+		tex.push(u1, v0);
+		
+		
+		
+		col.push(r, g, b);
+		col.push(r, g, b);
+		col.push(r, g, b);
+		
+		col.push(r, g, b);
+		col.push(r, g, b);
+		col.push(r, g, b);
+		
+		/*
+		tr.push(x1, h1, y1);
+		tr.push(x1, h2, y1);
+		tr.push(x2, h1, y2);
+		
 		tex.push(0, 0);
-		tex.push(len/tw, 0);
-		tex.push(len/tw, dh/th);
+		tex.push(0, dh/th);
+		tex.push(dw/tw, 0);
+		
+		tr.push(x1, h2, y1);
+		tr.push(x2, h2, y2);
+		tr.push(x2, h1, y2);
+		
+		tex.push(0, dh/th);
+		tex.push(dw/tw, dh/th);
+		tex.push(dw/tw, 0);
 		
 		col.push(r, g, b);
 		col.push(r, g, b);
@@ -175,7 +209,7 @@ function wadToMesh(lumps, textures) {
 		
 		col.push(r, g, b);
 		col.push(r, g, b);
-		col.push(r, g, b);
+		col.push(r, g, b);*/
 	}
 	
 	for(var i = 0; i < lumps.GL_SSECT.length; ++i) {
@@ -275,20 +309,24 @@ function wadToMesh(lumps, textures) {
 		var x2 = lumps.VERTEXES[linedef.v2Idx].x;
 		var y2 = lumps.VERTEXES[linedef.v2Idx].y;
 		
+		var lu = linedef.flags & Wad.LOWER_UNPEGGED;
+		var uu = linedef.flags & Wad.UPPER_UNPEGGED;
+		
 		if(!sidedef1)
-			pushWall(sidedef2.midTexName, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
+			pushWall(sidedef2.midTexName, !lu, x1, y1, x2, y2, sec2.floorHeight, sec2.ceilHeight);
 		else if(!sec2)
-			pushWall(sidedef1.midTexName, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
+			pushWall(sidedef1.midTexName, !lu, x1, y1, x2, y2, sec1.floorHeight, sec1.ceilHeight);
 		else {
 			if(sec1.floorHeight < sec2.floorHeight)
-				pushWall(sidedef1.lowTexName, x1, y1, x2, y2, sec1.floorHeight, sec2.floorHeight);
+				pushWall(sidedef1.lowTexName, true, x1, y1, x2, y2, sec1.floorHeight, sec2.floorHeight, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
 			else
-				pushWall(sidedef2.lowTexName, x1, y1, x2, y2, sec2.floorHeight, sec1.floorHeight);
+				pushWall(sidedef2.lowTexName, true, x1, y1, x2, y2, sec2.floorHeight, sec1.floorHeight, lu ? Math.max(sec1.ceilHeight, sec2.ceilHeight) : undefined);
 
+			
 			if(sec1.ceilHeight > sec2.ceilHeight)
-				pushWall(sidedef1.hiTexName, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight);
+				pushWall(sidedef1.hiTexName, uu, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight);
 			else
-				pushWall(sidedef2.hiTexName, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight);
+				pushWall(sidedef2.hiTexName, uu, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight);
 		}
 	}
 	
@@ -397,8 +435,12 @@ var texcoordLocation = gl.getAttribLocation(program, "a_texcoord");
 var textureLocation = gl.getUniformLocation(program, "u_texture");
 
 
-var posX = 1032;
-var posY = -3200;
+//var posX = 1032;
+//var posY = -3200;
+
+var posX = 200;
+var posY = -360;
+
 var velX = 0;
 var velY = 0;
 var yaw = 0, pitch = 0;
@@ -431,6 +473,7 @@ function loadTextures(textureNames, done) {
 		var image = e.target;
 		var texture = gl.createTexture();
 		
+		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
 		gl.generateMipmap(gl.TEXTURE_2D);
@@ -573,7 +616,6 @@ function renderLoop() {
 	
 	var newPosX = posX + velX * dt;
 	var newPosY = posY + velY * dt;
-	
 	
 	
 	var oldSec = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY});

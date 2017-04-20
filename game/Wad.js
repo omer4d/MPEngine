@@ -304,4 +304,7 @@
 		
 		return lumps;
 	}
+	
+	Wad.UPPER_UNPEGGED = 0x0008;
+	Wad.LOWER_UNPEGGED = 0x0010;
 })(window.Wad = window.Wad || {});
