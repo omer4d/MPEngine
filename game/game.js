@@ -27,7 +27,7 @@ function createProgram(gl, vertexShader, fragmentShader) {
 
 var GRID_TEXTURES = false;
 //var WAD_NAME = "/zaza2.wad";
-var WAD_NAME = "/e1m2.wad";
+var WAD_NAME = "/e1m1.wad";
 
 var vertexShaderSource = `
 attribute vec4 a_position;
@@ -217,11 +217,11 @@ function wadToMesh(lumps, textures) {
 		nx /= dw;
 		ny /= dw;
 		
-		//var dp = lumps.SECTORS[sidedef.sectorIdx].light; //1;// Math.max(lightDirX*nx + lightDirY * ny, 0);
+		var dp = 1;// 1.1 - 0.1 * Math.max(lightDirX*nx + lightDirY * ny, 0);
 		
-		var r = lumps.SECTORS[sidedef.sectorIdx].light;//200 + Math.floor(55*dp); //Math.floor((nx / len + 1) / 2 * 128 + 127);
-		var g = lumps.SECTORS[sidedef.sectorIdx].light;//200 + Math.floor(55*dp); //Math.floor((ny / len + 1) / 2 * 128 + 127);
-		var b = lumps.SECTORS[sidedef.sectorIdx].light;//200 + Math.floor(55*dp);
+		var r = Math.floor(lumps.SECTORS[sidedef.sectorIdx].light * dp);//200 + Math.floor(55*dp); //Math.floor((nx / len + 1) / 2 * 128 + 127);
+		var g = Math.floor(lumps.SECTORS[sidedef.sectorIdx].light * dp);//200 + Math.floor(55*dp); //Math.floor((ny / len + 1) / 2 * 128 + 127);
+		var b = Math.floor(lumps.SECTORS[sidedef.sectorIdx].light * dp);//200 + Math.floor(55*dp);
 		
 		var tr = tris[name];
 		var col = colors[name];
@@ -480,14 +480,13 @@ window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAn
 
 var keystates = {};
 
-document.body.addEventListener('keydown', function(e) {
+window.addEventListener('keydown', function(e) {
     keystates[e.key] = true;
 });
 
-document.body.addEventListener('keyup', function(e) {
+window.addEventListener('keyup', function(e) {
     keystates[e.key] = false;
 });
-
 
 var frameCount = 0;
 var fpsCounter = document.getElementById("fpsCounter");
@@ -521,6 +520,43 @@ var posY = -3200;
 var velX = 0;
 var velY = 0;
 var yaw = 0, pitch = 0;
+
+
+var lockedMouseMoveListener = function(e) {
+	yaw += e.movementX / 250;
+	pitch = Math.max(Math.min(pitch + e.movementY / 250, Math.PI / 2), -Math.PI / 2);
+};
+
+
+canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
+document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock || document.canvasExitPointerLock;
+
+canvas.onclick = function() {
+  canvas.requestPointerLock();
+};
+
+var locked = false;
+
+function lockChangeAlert() {
+	var newLocked = document.pointerLockElement === canvas;
+	
+  if (!locked && newLocked) {
+    console.log('The pointer lock status is now locked');
+    window.addEventListener("mousemove", lockedMouseMoveListener, false);
+  } else if(!newLocked && locked) {
+    console.log('The pointer lock status is now unlocked');  
+	window.removeEventListener("mousemove", lockedMouseMoveListener, false);
+  }
+  
+  locked = newLocked;
+}
+
+document.addEventListener('pointerlockchange', lockChangeAlert, false);
+document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
+
+
+
+
 
 window.Renderer.gl = gl;
 
@@ -679,9 +715,12 @@ function leavingSector(lumps, pos1, pos2) {
 
 
 
+var lastRenderTime = performance.now();
 
 function renderLoop() {
-	var dt = 1/60;
+	var t = performance.now();
+	var dt = (t - lastRenderTime)/1000;
+	lastRenderTime = t;
 	var moveSpeed = 50;
 	var newPosX, newPosY;
 	
