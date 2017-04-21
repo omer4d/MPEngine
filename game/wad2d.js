@@ -124,6 +124,34 @@ function findSubsector(lumps, idx, point) {
 
 
 
+function findCircleSubsector(lumps, idx, point, rad) {
+	var LEAF_FLAG = 1 << 15;
+	
+    if(idx & LEAF_FLAG) {
+        return [lumps.GL_SSECT[idx & ~LEAF_FLAG]];
+    }else {
+        var node = lumps.GL_NODES[idx];
+        var nx = -node.dy;
+		var ny = node.dx;
+		var len = Math.sqrt(nx*nx + ny*ny);
+		nx /= len;
+		ny /= len;
+		var dx = point.x - node.x;
+		var dy = point.y - node.y;
+		var dot = nx*dx+ny*dy;
+		
+        if(dot >= rad) {
+            return findCircleSubsector(lumps, node.leftChildIdx, point, rad);
+		}
+        else if(dot <= -rad) {
+            return findCircleSubsector(lumps, node.rightChildIdx, point, rad);
+		}
+		else {
+			return findCircleSubsector(lumps, node.leftChildIdx, point, rad).concat(findCircleSubsector(lumps, node.rightChildIdx, point, rad));
+		}
+    }
+}
+
 
 
 
@@ -193,10 +221,13 @@ function renderLoop() {
 	circle(context, mouseX, mouseY, 15, "red");
 	
 	
-	i = findSubsector(lumps, lumps.GL_NODES.length - 1, {x: mouseX, y: mouseY});
-	subsectorPath(context, lumps, i);
-	context.strokeStyle = "red";
-	context.stroke();
+	var subs = findCircleSubsector(lumps, lumps.GL_NODES.length - 1, {x: mouseX, y: mouseY}, 15);
+	
+	for(i = 0; i < subs.length; ++i) {
+		subsectorPath(context, lumps, subs[i]);
+		context.strokeStyle = "red";
+		context.stroke();
+	}
 	
 	
 	requestAnimationFrame(renderLoop);
