@@ -109,7 +109,7 @@ void main() {
 	
 	vec3 greycol = vec3(low_contrast_grey);
 	
-	float fd2 = min(1.0, finalDarkness * 2.5);
+	float fd2 = min(1.0, finalDarkness * 2.3);
 	
 	vec3 mixed = mix(greycol, t, fd2);
 	

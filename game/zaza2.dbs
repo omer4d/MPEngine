@@ -5,45 +5,23 @@ strictpatches = 0;
 maps
 {
 	
-	TEST_1
-	{
-		
-		grid
-		{
-			backoffsety = 0;
-			backoffsetx = 0;
-			backscalex = 100;
-			gridsize = 32;
-			background = "";
-			backsource = 0;
-			backscaley = 100;
-		}
-		
-		
-		resources
-		{
-		}
-		
-	}
-	
-	
 	E1M1
 	{
 		
-		grid
+		resources
 		{
-			backoffsety = 0;
-			backoffsetx = 0;
-			backscalex = 100;
-			gridsize = 32;
-			background = "";
-			backsource = 0;
-			backscaley = 100;
 		}
 		
 		
-		resources
+		grid
 		{
+			background = "";
+			backsource = 0;
+			backoffsetx = 0;
+			backoffsety = 0;
+			backscalex = 100;
+			backscaley = 100;
+			gridsize = 8;
 		}
 		
 	}
