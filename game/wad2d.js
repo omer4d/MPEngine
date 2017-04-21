@@ -200,6 +200,49 @@ function circleVsSeg(seg, cx, cy, rad, out) {
 }
 
 
+function circleVsMap(lumps, x, y, rad, res) {
+	var posX = x, posY = y;
+	var subs = findCircleSubsector(lumps, lumps.GL_NODES.length - 1, {x: posX, y: posY}, rad);
+	var flag = false;
+	
+	for(var z = 0; z < 10; ++z) {
+		var mtx = 0;
+		var mty = 0;
+		var count = 0;
+		
+		for(i = 0; i < subs.length; ++i) {
+			for(var j = 0; j < subs[i].segNum; ++j) {
+				var tseg = lumps.GL_SEGS[subs[i].firstSegIdx + j];
+				if(tseg.linedefIdx !==  0xFFFF) {
+					var out = {};
+					var linedef = lumps.LINEDEFS[tseg.linedefIdx];
+					var v1 = lumps.VERTEXES[linedef.v1Idx];
+					var v2 = lumps.VERTEXES[linedef.v2Idx];
+					var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
+					
+					if(circleVsSeg(seg, posX, posY, rad, out)) {
+						mtx += out.mtx;
+						mty += out.mty;
+						++count;
+						flag = true;
+					}
+				}
+			}
+		}
+		
+		if(count > 0) {
+			posX += mtx / count;
+			posY += mty / count;
+		}
+	}
+	
+	res.mtx = posX - x;
+	res.mty = posY - y;
+	
+	return flag;
+}
+
+
 
 
 
@@ -297,7 +340,8 @@ function renderLoop() {
 		context.lineWidth = 1.0;
 	}
 	
-	for(var z = 0; z < 100; ++z) {
+	/*
+	for(var z = 0; z < 10; ++z) {
 		var mtx = 0;
 		var mty = 0;
 		var count = 0;
@@ -325,7 +369,14 @@ function renderLoop() {
 			posX += mtx / count;
 			posY += mty / count;
 		}
+	}*/
+	
+	var res = {};
+	if(circleVsMap(lumps, posX, posY, rad, res)) {
+		posX += res.mtx;
+		posY += res.mty;
 	}
+	
 	
 	
 	circle(context, posX, posY, rad, "red");
