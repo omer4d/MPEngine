@@ -15,7 +15,7 @@ document.body.addEventListener('keyup', function(e) {
 
 
 var oReq = new XMLHttpRequest();
-oReq.open("GET", "/zaza2.wad", true);
+oReq.open("GET", "data/wad2d.wad", true);
 oReq.responseType = "arraybuffer";
 
 var lumps;
