@@ -1,6 +1,4 @@
-define([], function() {
-	var Wad = {};
-	
+(function(Wad) {
 	var wadStructs = (function() {
 		var char = "int8";
 		var short = "int16";
@@ -309,6 +307,4 @@ define([], function() {
 	
 	Wad.UPPER_UNPEGGED = 0x0008;
 	Wad.LOWER_UNPEGGED = 0x0010;
-	
-	return Wad;
-});
+})(window.Wad = window.Wad || {});

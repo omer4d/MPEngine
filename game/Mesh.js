@@ -1,8 +1,6 @@
-(function(Renderer) {
-	var gl;
-	
-	function Mesh() {
-		gl = Renderer.gl;
+define([], function() {
+	function Mesh(gl) {
+		this.gl = gl;
 		
 		this.coordBuff = null;
 		this.colorBuff = null;
@@ -14,6 +12,8 @@
 	}
 
 	Mesh.prototype.setCoords = function(coords) {
+		var gl = this.gl;
+		
 		if(this.coordBuff)
 			gl.deleteBuffer(this.coordBuff);
 		
@@ -26,6 +26,8 @@
 	}
 
 	Mesh.prototype.setColors = function(colors) {
+		var gl = this.gl;
+		
 		if(this.colorBuff)
 			gl.deleteBuffer(this.colorBuff);
 		
@@ -36,6 +38,8 @@
 	}
 	
 	Mesh.prototype.setTexCoords = function(texCoords) {
+		var gl = this.gl;
+		
 		if(this.texCoordBuff)
 			gl.deleteBuffer(this.texCoordBuff);
 		
@@ -46,6 +50,8 @@
 	}
 	
 	Mesh.prototype.setIndices = function(indices) {
+		var gl = this.gl;
+		
 		if(this.indexBuff)
 			gl.deleteBuffer(this.indexBuff);
 		
@@ -58,6 +64,8 @@
 	}
 	
 	Mesh.prototype.draw = function(locations, start, num) {
+		var gl = this.gl;
+		
 		gl.enableVertexAttribArray(locations.coords);
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.coordBuff);
 		gl.vertexAttribPointer(locations.coords, 3, gl.FLOAT, false, 0, 0);
@@ -82,5 +90,5 @@
 		}
 	}
 	
-	Renderer.Mesh = Mesh;
-})(window.Renderer = window.Renderer || {});
+	return Mesh;
+});
