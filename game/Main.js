@@ -1,4 +1,4 @@
-require(["Wad", "Matrix4", "Mesh"], function(Wad, m4, Mesh) {
+require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, TextureManager) {
 	
 	function createShader(gl, type, source) {
 	  var shader = gl.createShader(type);
@@ -192,6 +192,8 @@ require(["Wad", "Matrix4", "Mesh"], function(Wad, m4, Mesh) {
 		var tris = {};
 		var colors = {};
 		var texcoords = {};
+		
+		console.log(textures);
 
 		var initTex = function(name) {
 			tris[name] = tris[name] || [];
@@ -410,22 +412,24 @@ require(["Wad", "Matrix4", "Mesh"], function(Wad, m4, Mesh) {
 		}
 		
 		var submeshes = [];
-		var textures = Object.keys(tris);
+		var triTexList = Object.keys(tris);
 		
 		var jointTris = [];
 		var jointColors = [];
 		var jointTexCoords = [];
 		
-		textures.forEach(function(key) {
-			submeshes.push({tex: key, start: jointTris.length/3, len: tris[key].length/3});
+		triTexList.forEach(function(key) {
+			
+			submeshes.push({tex: textures[key] ? textures[key].handle : null,
+							start: jointTris.length/3, len: tris[key].length/3});
 			Array.prototype.push.apply(jointTris, tris[key]);
 		});
 		
-		textures.forEach(function(key) {
+		triTexList.forEach(function(key) {
 			Array.prototype.push.apply(jointColors, colors[key]);
 		});
 		
-		textures.forEach(function(key) {
+		triTexList.forEach(function(key) {
 			Array.prototype.push.apply(jointTexCoords, texcoords[key]);
 		});
 		
@@ -571,6 +575,9 @@ require(["Wad", "Matrix4", "Mesh"], function(Wad, m4, Mesh) {
 	var texture = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, texture);
 
+	var textureManager = new TextureManager(gl);
+	
+	
 	function ispow2(x) {
 		return (~x & (x - 1)) === (x - 1);
 	}
@@ -988,8 +995,8 @@ require(["Wad", "Matrix4", "Mesh"], function(Wad, m4, Mesh) {
 		 gl.uniform1i(textureLocation, 0);
 
 		 for(var i = 0; i < submeshes.length; ++i) {
-			 if(textures[submeshes[i].tex])
-				gl.bindTexture(gl.TEXTURE_2D, textures[submeshes[i].tex].handle);
+			 if(submeshes[i].tex)
+				gl.bindTexture(gl.TEXTURE_2D, submeshes[i].tex);
 			else
 				gl.bindTexture(gl.TEXTURE_2D, textures["error_missing_texture"].handle);
 		 
