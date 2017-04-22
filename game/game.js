@@ -807,9 +807,6 @@ function circleVsMap(lumps, x, y, h, rad, res) {
 	var subs = findCircleSubsector(lumps, lumps.GL_NODES.length - 1, {x: posX, y: posY}, rad);
 	var flag = false;
 	
-	if(keystates["e"])
-		console.log(h);
-	
 	for(var z = 0; z < 5; ++z) {
 		var mtx = 0;
 		var mty = 0;
@@ -886,7 +883,7 @@ function renderLoop() {
 	var t = performance.now();
 	var dt = (t - lastRenderTime)/1000;
 	lastRenderTime = t;
-	var moveSpeed = 50;
+	var moveSpeed = 0;
 	var newPosX, newPosY;
 	
 	//console.log(keystates);
@@ -894,7 +891,7 @@ function renderLoop() {
 	//if(keystates["LeftShift"]) {
 	//	moveSpeed
 	//}
-	moveSpeed = keystates["e"] ? 5 : 50;
+	moveSpeed = keystates["p"] ? 5 : 32;
 	
 	if(keystates["w"]) {
 		velX += moveSpeed * Math.cos(yaw);
@@ -915,6 +912,18 @@ function renderLoop() {
 		velX += moveSpeed * Math.sin(yaw);
 		velY += -moveSpeed * Math.cos(yaw);
 	}
+	
+	/*
+	if(velX > 320)
+		velX = 320;
+	if(velX < -320)
+		velX = -320;
+	if(velY > 320)
+		velY = 320;
+	if(velY < -320)
+		velY = -320;*/
+	
+	document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(Math.sqrt(velX*velX+velY*velY));
 	
 	var newPosX = posX + velX * dt;
 	var newPosY = posY + velY * dt;
