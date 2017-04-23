@@ -49,7 +49,7 @@ define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
 
 
 		void main() {
-			float n = 25.0;
+			float n = 5.0;
 			float f = 10000.0;
 			float zndc = gl_FragCoord.z * 2.0 - 1.0;
 			float z = -2.0*f*n / (zndc*(f-n)-(f+n));
@@ -67,12 +67,12 @@ define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
 			float level5 = pow(1.0 - dark, 2.7);
 			float level6 = pow(1.0 - dark, 3.1);
 			
-			float dist1 = 25.0;
-			float dist2 = 50.0;
-			float dist3 = 90.0;
-			float dist4 = 150.0;
-			float dist5 = 300.0;
-			float dist6 = 500.0;
+			float dist1 = n-20.0+25.0;
+			float dist2 = n-20.0+50.0;
+			float dist3 = n-20.0+90.0;
+			float dist4 = n-20.0+150.0;
+			float dist5 = n-20.0+300.0;
+			float dist6 = n-20.0+500.0;
 			
 			if(z < dist2)
 				finalDarkness = remap(z, dist1, dist2, level1, level2);

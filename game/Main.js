@@ -157,7 +157,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(player.xzSpeed());
 		
 		var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight * (1.2);
-		var zNear = 20;
+		var zNear = 5;
 		var zFar = 10000;
 		var projectionMatrix = m4.perspective(3.14/2*0.8, aspect, zNear, zFar);
 
