@@ -23,8 +23,6 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		var moveDir = new Vector3();
 		var msens = 1/250;
 		
-		console.log(moveDir);
-		
 		if(Input.keyPressed("ArrowLeft"))
 			p.angles.y -= turnSpeed * dt;
 		if(Input.keyPressed("ArrowRight"))
@@ -54,6 +52,10 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 			moveDir.z += -Math.cos(p.angles.y);
 		}
 		
+		if(Input.keyJustPressed("Spacebar") || Input.keyJustPressed(" ") && grounded) {
+			p.vel.y += 300;
+		}
+		
 		if(Input.mouseLocked()) {
 			p.angles.y += Input.mouseDeltaX() * msens;
 			p.angles.x = Math.max(Math.min(p.angles.x + Input.mouseDeltaY() * msens, Math.PI / 2), -Math.PI / 2);
@@ -64,13 +66,29 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	}
 	
 	function movePlayer(p, level, dt) {
+		var playerHeight = 60;
+		var sh = level.findSector({x: p.pos.x, y: p.pos.z}).floorHeight;
+		controlPlayer(p, player.pos.y < sh + 1, dt);
+		
+		p.vel.y -= 800 * dt;
+		
 		p.pos.x += p.vel.x * dt;
+		p.pos.y += p.vel.y * dt;
 		p.pos.z += p.vel.z * dt;
-		p.pos.y = level.findSector({x: p.pos.x, y: p.pos.z}).floorHeight;
 		
 		var res = {};
+		var psec = level.findSector({x: p.pos.x, y: p.pos.z});
+		if(p.pos.y < psec.floorHeight) {
+			p.pos.y = psec.floorHeight;
+			p.vel.y = 0;
+		}
 		
-		if(level.vsCircle(p.pos.x, p.pos.z, p.pos.y, 25, res) && !Input.keyPressed("q")) {
+		if(p.pos.y + playerHeight > psec.ceilHeight) {
+			p.pos.y = psec.ceilHeight - playerHeight;
+			p.vel.y = 0;
+		}
+		
+		if(level.vsCircle(p.pos.x, p.pos.z, p.pos.y, playerHeight, 25, res) && !Input.keyPressed("q")) {
 			p.pos.x += res.mtx;
 			p.pos.z += res.mty;
 		}
@@ -134,7 +152,6 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		var dt = (t - lastRenderTime)/1000;
 		lastRenderTime = t;
 		
-		controlPlayer(player, true, dt);
 		movePlayer(player, level, dt);
 		
 		document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(player.xzSpeed());

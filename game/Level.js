@@ -228,7 +228,7 @@ define([], function() {
 		}
 	}
 
-	Level.prototype.vsCircle = function(x, y, h, rad, res) {
+	Level.prototype.vsCircle = function(x, y, h, ph, rad, res) {
 		var lumps = this.lumps;
 		var posX = x, posY = y;
 		var subs = this.findCircleSubsector({x: posX, y: posY}, rad);
@@ -250,8 +250,6 @@ define([], function() {
 						var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
 						var side = this.segSide(linedef, {x: posX, y: posY});
 						var otherSector = linedefSector(lumps, linedef, side === 1);
-						
-						var ph = 40;
 						
 						if( (!otherSector ||
 								otherSector.floorHeight > h + 30 ||
