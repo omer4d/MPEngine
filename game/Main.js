@@ -1,4 +1,4 @@
-require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, TextureManager) {
+require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level"], function(Wad, m4, Mesh, TextureManager, Level) {
 	console.log(window.location.pathname);
 	
 	function createShader(gl, type, source) {
@@ -47,6 +47,19 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 	  v_color = a_color;
 	  v_texcoord = a_texcoord;
 	}`;
+
+	var simpleFragmentShaderSource = `
+	precision mediump float;
+
+	varying vec4 v_color;
+	varying vec2 v_texcoord;
+
+	uniform sampler2D u_texture;
+
+	void main() {
+		gl_FragColor =  texture2D(u_texture, v_texcoord) * v_color;
+	}
+	`;
 
 	var fragmentShaderSource = `
 	precision mediump float;
@@ -121,37 +134,6 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 	`;
 
 
-	function translateGlSeg(lumps, seg) {
-		var x1, y1, x2, y2;
-		var glVertFlag = 1 << 15;
-		
-		if(seg.v1Idx & glVertFlag) {
-			x1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].x / 65536.0;
-			y1 = lumps.GL_VERT[seg.v1Idx & ~glVertFlag].y / 65536.0;
-		}else {
-			x1 = lumps.VERTEXES[seg.v1Idx].x;
-			y1 = lumps.VERTEXES[seg.v1Idx].y;
-		}
-		
-		if(seg.v2Idx & glVertFlag) {
-			x2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].x / 65536.0;
-			y2 = lumps.GL_VERT[seg.v2Idx & ~glVertFlag].y / 65536.0;
-		}else {
-			x2 = lumps.VERTEXES[seg.v2Idx].x;
-			y2 = lumps.VERTEXES[seg.v2Idx].y;
-		}
-		
-		return {x1: x1, y1: y1, x2: x2, y2: y2};
-	}
-
-	function findLinedefSector(lumps, linedef, side) {
-		var sidedef = lumps.SIDEDEFS[side ? linedef.negSidedefIdx : linedef.posSidedefIdx];
-		return lumps.SECTORS[sidedef.sectorIdx];
-	}
-
-	function findSegSector(lumps, seg) {
-		return findLinedefSector(lumps, lumps.LINEDEFS[seg.linedefIdx], seg.side);
-	}
 
 
 
@@ -188,7 +170,8 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 		return Object.keys(textures);
 	}
 
-	function wadToMesh(gl, lumps, textures) {
+	function wadToMesh(gl, level, textures) {
+		var lumps = level.lumps;
 		var mesh = new Mesh(gl);
 		var tris = {};
 		var colors = {};
@@ -295,9 +278,9 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 		for(var i = 0; i < lumps.GL_SSECT.length; ++i) {
 			var ssect = lumps.GL_SSECT[i];
 			var seg = lumps.GL_SEGS[ssect.firstSegIdx];
-			var tseg = translateGlSeg(lumps, seg);
+			var tseg = level.translateGlSeg(seg);
 			var x0 = tseg.x1, y0 = tseg.y1;
-			var sector = findSegSector(lumps, seg);
+			var sector = level.findSegSector(seg);
 			var h1 = sector.floorHeight;
 			var h2 = sector.ceilHeight;
 			
@@ -307,7 +290,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 			
 			for(var j = 1; j < ssect.segNum - 1; ++j) {
 				var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
-				var tseg = translateGlSeg(lumps, seg);
+				var tseg = level.translateGlSeg(seg);
 				var br = 0.8 + Math.random() * 0.2;
 				var r1 = r;//255;//Math.floor(r * br);
 				var g1 = r;//255;//Math.floor(g * br);
@@ -352,7 +335,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 			
 			for(var j = 0; j < ssect.segNum; ++j) {
 				var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
-				var tseg = translateGlSeg(lumps, seg);
+				var tseg = level.translateGlSeg(seg);
 
 				if(seg.linedefIdx !== 0xFFFF) {
 					var linedef = lumps.LINEDEFS[seg.linedefIdx];
@@ -452,32 +435,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 
 
 
-	function findSubsector(lumps, idx, point) {
-		var LEAF_FLAG = 1 << 15;
-		
-		if(idx & LEAF_FLAG) {
-			return lumps.SSECTORS[idx & ~LEAF_FLAG];
-		}else {
-			var node = lumps.NODES[idx];
-			var nx = -node.dy;
-			var ny = node.dx;
-			var dx = point.x - node.x;
-			var dy = point.y - node.y;
-			
-			if(nx*dx+ny*dy >= 0)
-				return findSubsector(lumps, node.leftChildIdx, point);
-			else
-				return findSubsector(lumps, node.rightChildIdx, point);
-		}
-	}
 
-	function findSector(lumps, idx, point) {
-		var ssector = findSubsector(lumps, idx, point);
-		var seg = lumps.SEGS[ssector.firstSegIdx];
-		var linedef = lumps.LINEDEFS[seg.linedefIdx];
-		var sidedef = seg.side ? lumps.SIDEDEFS[linedef.negSidedefIdx] : lumps.SIDEDEFS[linedef.posSidedefIdx];
-		return lumps.SECTORS[sidedef.sectorIdx];
-	}
 
 
 
@@ -573,7 +531,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 	oReq.open("GET", WAD_NAME, true);
 	oReq.responseType = "arraybuffer";
 
-	var lumps;
+	var level;
 	var texture = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -588,10 +546,12 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 	oReq.onload = function (oEvent) {
 	  var arrayBuffer = oReq.response;
 	  if (arrayBuffer) {
-		lumps = Wad.read(arrayBuffer);
-		console.log(lumps);
+		level = new Level(Wad.read(arrayBuffer));
 		
-		var texList = genTextureNameList(lumps);
+		
+		console.log(level.lumps);
+		
+		var texList = genTextureNameList(level.lumps);
 		textureManager.begin();
 		for(var i = 0; i < texList.length; ++i)
 			textureManager.add(texList[i], "data/textures/" + texList[i] + ".png");
@@ -599,7 +559,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 		textureManager.end(function(t) {
 			textures = t;
 			
-			var res = wadToMesh(gl, lumps, textures);
+			var res = wadToMesh(gl, level, textures);
 			mesh = res.mesh;
 			submeshes = res.submeshes;
 			
@@ -624,208 +584,6 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 	};
 
 	oReq.send(null);
-
-	/*
-	*/
-
-
-	function pointSegDist(lumps, seg, point) {
-		var v1 = lumps.VERTEXES[seg.v1Idx];
-		var v2 = lumps.VERTEXES[seg.v2Idx];
-		var nx = -(v2.y - v1.y);
-		var ny = v2.x - v1.x;
-		var dx = point.x - v1.x;
-		var dy = point.y - v1.y;
-		return dx*nx + dy*ny;
-	}
-
-	function segSide(lumps, seg, point) {
-		return pointSegDist(lumps, seg, point) < 0 ? -1 : 1;
-	}
-
-	function insideSubector(lumps, subsec, point) {
-		for(var i = 0; i < subsec.segNum; ++i) {
-			var seg = lumps.SEGS[subsec.firstSegIdx + i];
-			var linedef = lumps.LINEDEFS[seg.linedefIdx];
-			
-			if(linedef.posSidedefIdx === 0xFFFF && segSide(lumps, seg, point) === -1)
-				return false;
-			if(linedef.negSidedefIdx === 0xFFFF && segSide(lumps, seg, point) === 1)
-				return false;
-		}
-		
-		return true;
-	}
-
-	function leavingSector(lumps, pos1, pos2) {
-		var oldSub = findSubsector(lumps, lumps.NODES.length - 1, pos1);
-		var newSub = findSubsector(lumps, lumps.NODES.length - 1, pos2);
-		return insideSubector(lumps, oldSub, pos1) && !insideSubector(lumps, newSub, pos2);
-	}
-
-
-	// **************
-	// * Collisions *
-	// **************
-
-	function findCircleSubsector(lumps, idx, point, rad) {
-		var LEAF_FLAG = 1 << 15;
-		
-		if(idx & LEAF_FLAG) {
-			return [lumps.GL_SSECT[idx & ~LEAF_FLAG]];
-		}else {
-			var node = lumps.GL_NODES[idx];
-			var nx = -node.dy;
-			var ny = node.dx;
-			var len = Math.sqrt(nx*nx + ny*ny);
-			nx /= len;
-			ny /= len;
-			var dx = point.x - node.x;
-			var dy = point.y - node.y;
-			var dot = nx*dx+ny*dy;
-			
-			if(dot >= rad) {
-				return findCircleSubsector(lumps, node.leftChildIdx, point, rad);
-			}
-			else if(dot <= -rad) {
-				return findCircleSubsector(lumps, node.rightChildIdx, point, rad);
-			}
-			else {
-				return findCircleSubsector(lumps, node.leftChildIdx, point, rad).concat(findCircleSubsector(lumps, node.rightChildIdx, point, rad));
-			}
-		}
-	}
-
-	function circleVsSeg(seg, cx, cy, rad, out) {
-		var dx = seg.x2 - seg.x1;
-		var dy = seg.y2 - seg.y1;
-		var len = Math.sqrt(dx*dx + dy*dy);
-		var nx = -dy;
-		var ny = dx;
-		
-		nx /= len;
-		ny /= len;
-		
-		var vx1 = cx - seg.x1;
-		var vy1 = cy - seg.y1;
-		var dpt = dx*vx1 + dy*vy1;
-		
-		if(dpt >= 0 && dpt < dx*dx+dy*dy) {
-			var dpn = nx*vx1 + ny*vy1;
-			var mtd1 = rad - dpn;
-			var mtd2 = -rad - dpn;
-			var mtd = dpn > 0 ? mtd1 : mtd2;
-			out.mtx = nx * mtd;
-			out.mty = ny * mtd;
-			out.nx = nx;
-			out.ny = ny;
-			return Math.abs(dpn) <= rad;
-		}else {
-			var vx2 = cx - seg.x2;
-			var vy2 = cy - seg.y2;
-			var d1 = vx1*vx1 + vy1*vy1;
-			var d2 = vx2*vx2 + vy2*vy2;
-			
-			if(d1 > rad*rad && d2 > rad*rad)
-				return false;
-			
-			if(d1 < d2) {
-				d1 = Math.sqrt(d1);
-				out.mtx = vx1/d1 * (rad - d1);
-				out.mty = vy1/d1 * (rad - d1);
-			}else {
-				d2 = Math.sqrt(d2);
-				out.mtx = vx2/d2 * (rad - d2);
-				out.mty = vy2/d2 * (rad - d2);
-			}
-			
-			return true;
-		}
-	}
-
-	function oneSidedLinedef(linedef) {
-		return linedef.posSidedefIdx === 0xFFFF || linedef.negSidedefIdx === 0xFFFF;
-	}
-
-	function linedefSector(lumps, linedef, pos) {
-		var idx = pos ? linedef.posSidedefIdx : linedef.negSidedefIdx;
-		return idx === 0xFFFF ? null : lumps.SECTORS[lumps.SIDEDEFS[idx].sectorIdx];
-	}
-
-	function circleVsMap(lumps, x, y, h, rad, res) {
-		var posX = x, posY = y;
-		var subs = findCircleSubsector(lumps, lumps.GL_NODES.length - 1, {x: posX, y: posY}, rad);
-		var flag = false;
-		
-		for(var z = 0; z < 5; ++z) {
-			var mtx = 0;
-			var mty = 0;
-			var count = 0;
-			
-			for(i = 0; i < subs.length; ++i) {
-				for(var j = 0; j < subs[i].segNum; ++j) {
-					var tseg = lumps.GL_SEGS[subs[i].firstSegIdx + j];
-					if(tseg.linedefIdx !==  0xFFFF) {
-						var out = {};
-						var linedef = lumps.LINEDEFS[tseg.linedefIdx];
-						var v1 = lumps.VERTEXES[linedef.v1Idx];
-						var v2 = lumps.VERTEXES[linedef.v2Idx];
-						var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
-						var side = segSide(lumps, linedef, {x: posX, y: posY});
-						var otherSector = linedefSector(lumps, linedef, side === 1);
-						
-						var ph = 40;
-						
-						if( (!otherSector ||
-								otherSector.floorHeight > h + 30 ||
-								otherSector.ceilHeight < h + ph ||
-								otherSector.ceilHeight - otherSector.floorHeight < ph) &&
-							circleVsSeg(seg, posX, posY, rad, out)) {
-							mtx += out.mtx;
-							mty += out.mty;
-							++count;
-							flag = true;
-						}
-					}
-				}
-			}
-			
-			if(count > 0) {
-				posX += mtx / count;
-				posY += mty / count;
-			}
-		}
-		
-		res.mtx = posX - x;
-		res.mty = posY - y;
-		
-		/*
-		var oldSec = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY});
-		var newSec = findSector(lumps, lumps.NODES.length - 1, {x: newPosX, y: newPosY});
-		
-		var h1 = oldSec.floorHeight;
-		
-		if((!leavingSector(lumps, {x: posX, y: posY}, {x: newPosX, y: newPosY}) &&
-			newSec.floorHeight - h1 < 30 && newSec.ceilHeight > h1 + 60) || keystates["q"]) {
-			posX = newPosX;
-			posY = newPosY;
-		}*/
-		
-		
-		return flag;
-	}
-
-
-
-	// *************
-	// * Rendering *
-	// *************
-
-
-
-
-
-
 
 	var lastRenderTime = performance.now();
 
@@ -877,21 +635,21 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 		
 		var newPosX = posX + velX * dt;
 		var newPosY = posY + velY * dt;
-		var posH = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY}).floorHeight;
+		var posH = level.findSector({x: posX, y: posY}).floorHeight;
 		
 		posX = newPosX;
 		posY = newPosY;
 		
 		var res = {};
-		if(circleVsMap(lumps, posX, posY, posH, 25, res) && !keystates["q"]) {
+		if(level.vsCircle(posX, posY, posH, 25, res) && !keystates["q"]) {
 			posX += res.mtx;
 			posY += res.mty;
 		}
 		
 		
 		/*
-		var oldSec = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY});
-		var newSec = findSector(lumps, lumps.NODES.length - 1, {x: newPosX, y: newPosY});
+		var oldSec = level.findSector({x: posX, y: posY});
+		var newSec = level.findSector({x: newPosX, y: newPosY});
 		
 		var h1 = oldSec.floorHeight;
 		
@@ -924,7 +682,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 		gl.useProgram(program);
 
 		// Compute the projection matrix
-		var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+		var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight * (1.2);
 		var zNear = 20;
 		var zFar = 10000;
 		var projectionMatrix = m4.perspective(3.14/2*0.8, aspect, zNear, zFar);
