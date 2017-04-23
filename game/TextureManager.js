@@ -49,7 +49,7 @@ define([], function() {
 			dict[e.target.alias] = null;
 			
 			if(count === pairs.length)
-				done(dict);
+				done();
 		}
 		
 		for(var i = 0; i < pairs.length; ++i) {
@@ -65,7 +65,12 @@ define([], function() {
 		this.gl = gl;
 		this.temp = {};
 		this.oldTemp = {};
+		this.ready = true;
 	}
+	
+	TextureManager.prototype.get = function(alias) {
+		return this.ready ? this.temp[alias] : null;
+	};
 	
 	TextureManager.prototype.begin = function() {
 		var self = this;
@@ -76,6 +81,7 @@ define([], function() {
 		});
 		
 		self.temp = {};
+		self.ready = false;
 	};
 	
 	TextureManager.prototype.add = function(alias, url) {
@@ -101,6 +107,7 @@ define([], function() {
 				newPairs.push({alias: alias, url: self.temp[alias]});
 		});
 		
+		self.ready = true;
 		loadTextures(self.temp, self.gl, newPairs, done);
 	};
 	

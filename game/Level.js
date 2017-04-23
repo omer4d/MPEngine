@@ -3,6 +3,40 @@ define([], function() {
 		this.lumps = lumps;
 	}
 	
+	Level.prototype.genTextureNameList = function() {
+		var lumps = this.lumps;
+		var textures = {"error_missing_texture": true, "error_bad_format": true};
+		
+		for(var i = 0; i < lumps.SECTORS.length; ++i) {
+			var sector = lumps.SECTORS[i];
+			textures[sector.floorTexName] = true;
+			textures[sector.ceilTexName] = true;
+		}
+		
+		for(i = 0; i < lumps.LINEDEFS.length; ++i) {
+			var linedef = lumps.LINEDEFS[i];
+			var sidedef1 = linedef.posSidedefIdx !== 0xFFFF ? lumps.SIDEDEFS[linedef.posSidedefIdx] : null;
+			var sidedef2 = linedef.negSidedefIdx !== 0xFFFF ? lumps.SIDEDEFS[linedef.negSidedefIdx] : null;
+			
+			if(sidedef1) {
+				textures[sidedef1.lowTexName] = true;
+				textures[sidedef1.midTexName] = true;
+				textures[sidedef1.hiTexName] = true;
+			}
+			
+			if(sidedef2) {
+				textures[sidedef2.lowTexName] = true;
+				textures[sidedef2.midTexName] = true;
+				textures[sidedef2.hiTexName] = true;
+			}
+		}
+		
+		if("-" in textures)
+			delete textures["-"];
+		
+		return Object.keys(textures);
+	}
+	
 	Level.prototype.translateGlSeg = function(seg) {
 		var lumps = this.lumps;
 		var x1, y1, x2, y2;
