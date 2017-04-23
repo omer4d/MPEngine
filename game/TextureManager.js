@@ -3,7 +3,7 @@ define([], function() {
 		return (~x & (x - 1)) === (x - 1);
 	}
 	
-	function loadTextures(dict, gl, urls, done) {
+	function loadTextures(dict, gl, pairs, done) {
 		var count = 0;
 		
 		var successCallback = function(e) {
@@ -17,7 +17,7 @@ define([], function() {
 			
 			if(ispow2(image.width) && ispow2(image.height)) {
 				gl.generateMipmap(gl.TEXTURE_2D);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 			}
 				
@@ -33,24 +33,27 @@ define([], function() {
 				//console.log("Warning: " + image.name + " is a non-pow2 texture.");
 			}
 			
-			dict[image.src] = {handle: texture, width: image.width, height: image.height};
+			dict[image.alias] = {handle: texture, width: image.width, height: image.height};
 			
 			++count;
 			
-			if(count === urls.length)
+			if(count === pairs.length)
 				done(dict);
 		};
 		
 		var errorCallback = function(e) {
 			++count;
-			if(count === urls.length)
+			
+			dict[e.target.alias] = null;
+			
+			if(count === pairs.length)
 				done(dict);
 		}
 		
-		for(var i = 0; i < urls.length; ++i) {
+		for(var i = 0; i < pairs.length; ++i) {
 			var image = new Image();
-			image.src = urls[i];
-			image.key = relUrls[i].slice(0, relUrls[i].lastIndexOf("."));
+			image.src = pairs[i].url;
+			image.alias = pairs[i].alias;
 			image.addEventListener('load', successCallback);
 			image.addEventListener('error', errorCallback);
 		}
@@ -60,47 +63,43 @@ define([], function() {
 		this.gl = gl;
 		this.temp = {};
 		this.oldTemp = {};
-		this.baseUrl = "";
 	}
 	
-	TextureManager.prototype.setBaseUrl = function(baseUrl) {
-		this.baseUrl = baseUrl;
-	};
-	
-	TextureManager.prototype.begin = function() { 
-		this.oldTemp = {};
+	TextureManager.prototype.begin = function() {
+		var self = this;
+		self.oldTemp = {};
 		
-		Object.keys(temp).forEach(function(url) {
-			oldTemp[url] = temp[url];
+		Object.keys(self.temp).forEach(function(alias) {
+			self.oldTemp[alias] = self.temp[alias];
 		});
 		
-		this.temp = {};
+		self.temp = {};
 	};
 	
-	TextureManager.prototype.add = function(url) {
-		this.temp[url] = null;
+	TextureManager.prototype.add = function(alias, url) {
+		this.temp[alias] = url;
 	};
 	
 	TextureManager.prototype.end = function(done) {
 		var self = this;
-		var newUrls = [];
+		var newPairs = [];
 		
-		Object.keys(oldTemp).forEach(function(url) {
+		Object.keys(self.oldTemp).forEach(function(alias) {
 			// Delete textures that weren't requested again:
-			if(self.oldTemp[url] && !(url in temp)) {
-				self.gl.deleteTexture(self.oldTemp[url]);
+			if(self.oldTemp[alias] && !(alias in self.temp)) {
+				self.gl.deleteTexture(self.oldTemp[alias]);
 			}
 		});
 		
-		Object.keys(temp).forEach(function(url) {
+		Object.keys(self.temp).forEach(function(alias) {
 			// Recycle already loaded textures:
-			if(url in self.oldTemp)
-				self.temp[url] = self.oldTemp[url];
+			if(alias in self.oldTemp)
+				self.temp[alias] = self.oldTemp[alias];
 			else
-				newUrls.push(url);
+				newPairs.push({alias: alias, url: self.temp[alias]});
 		});
 		
-		loadTextures(self.temp, self.gl, newUrls, done);
+		loadTextures(self.temp, self.gl, newPairs, done);
 	};
 	
 	return TextureManager;

@@ -580,76 +580,8 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 	var textureManager = new TextureManager(gl);
 	
 	
-	function ispow2(x) {
-		return (~x & (x - 1)) === (x - 1);
-	}
-
-	function loadTextures(textureNames, done) {
-		var count = 0;
-		var textures = {};
-		
-		var callback = function(e) {
-			var image = e.target;
-			var texture = gl.createTexture();
-			
-			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-			gl.bindTexture(gl.TEXTURE_2D, texture);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
-			
-			
-			if(ispow2(image.width) && ispow2(image.height)) {
-				
-				/*
-				gl.generateMipmap(gl.TEXTURE_2D);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);*/
-				
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-				
-				
-			}
-				
-			else {
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-				
-				//if(!ispow2(image.height))
-					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-				//if(!ispow2(image.width))
-					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-				
-				//console.log("Warning: " + image.name + " is a non-pow2 texture.");
-			}
-			
-			textures[image.name] = {handle: texture, width: image.width, height: image.height};
-			
-			++count;
-			
-			if(count === textureNames.length)
-				done(textures);
-		};
-		
-		var errorCallback = function(e) {
-			++count;
-			if(count === textureNames.length)
-				done(textures);
-		}
-		
-		for(var i = 0; i < textureNames.length; ++i) {
-			var image = new Image();
-			
-			
-			if(GRID_TEXTURES)
-				image.src = "data/grid.png";
-			else
-				image.src = "data/textures/" + textureNames[i] + ".png";
-			
-			image.name = textureNames[i];
-			image.addEventListener('load', callback);
-			image.addEventListener('error', errorCallback);
-		}
-	}
+	
+	
 
 
 
@@ -659,7 +591,12 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 		lumps = Wad.read(arrayBuffer);
 		console.log(lumps);
 		
-		loadTextures(genTextureNameList(lumps), function(t) {
+		var texList = genTextureNameList(lumps);
+		textureManager.begin();
+		for(var i = 0; i < texList.length; ++i)
+			textureManager.add(texList[i], "data/textures/" + texList[i] + ".png");
+		
+		textureManager.end(function(t) {
 			textures = t;
 			
 			var res = wadToMesh(gl, lumps, textures);
