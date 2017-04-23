@@ -1,0 +1,3 @@
+define({
+	PLAYER_FLAG,
+});
