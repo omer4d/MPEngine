@@ -11,6 +11,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		this.pos = new Vector3(x, y, z);
 		this.vel = new Vector3();
 		this.angles = new Vector3();
+		this.bufferedJumps = 0;
 	}
 	
 	Player.prototype.xzSpeed = function() {
@@ -52,8 +53,8 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 			moveDir.z += -Math.cos(p.angles.y);
 		}
 		
-		if(Input.keyJustPressed("Spacebar") || Input.keyJustPressed(" ") && grounded) {
-			p.vel.y += 300;
+		if(Input.keyJustPressed("Spacebar") || Input.keyJustPressed(" ")) {
+			p.bufferedJumps = 1;
 		}
 		
 		if(Input.mouseLocked()) {
@@ -61,26 +62,38 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 			p.angles.x = Math.max(Math.min(p.angles.x + Input.mouseDeltaY() * msens, Math.PI / 2), -Math.PI / 2);
 		}
 		
-		p.vel.x += moveDir.x * groundAccel * dt;
-		p.vel.z += moveDir.z * groundAccel * dt;
+		if(grounded) {
+			p.vel.x += moveDir.x * groundAccel * dt;
+			p.vel.z += moveDir.z * groundAccel * dt;
+		}
 	}
 	
 	function movePlayer(p, level, dt) {
 		var playerHeight = 60;
 		var sh = level.findSector({x: p.pos.x, y: p.pos.z}).floorHeight;
-		controlPlayer(p, player.pos.y < sh + 1, dt);
+		var grounded = player.pos.y < sh + 1;
+		controlPlayer(p, grounded, dt);
 		
 		p.vel.y -= 800 * dt;
-		
 		p.pos.x += p.vel.x * dt;
 		p.pos.y += p.vel.y * dt;
 		p.pos.z += p.vel.z * dt;
 		
+		grounded = false;
+		
 		var res = {};
 		var psec = level.findSector({x: p.pos.x, y: p.pos.z});
+		
 		if(p.pos.y < psec.floorHeight) {
 			p.pos.y = psec.floorHeight;
 			p.vel.y = 0;
+			
+			if(p.bufferedJumps > 0) {
+				p.vel.y += 17000 * dt;
+				--p.bufferedJumps;
+			}
+			
+			grounded = true;
 		}
 		
 		if(p.pos.y + playerHeight > psec.ceilHeight) {
@@ -93,8 +106,10 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 			p.pos.z += res.mty;
 		}
 		
-		p.vel.x *= 0.9;
-		p.vel.z *= 0.9;
+		if(grounded) {
+			p.vel.x *= 0.9;
+			p.vel.z *= 0.9;
+		}
 	}
 	
 	
