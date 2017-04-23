@@ -1,4 +1,5 @@
 require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, TextureManager) {
+	console.log(window.location.pathname);
 	
 	function createShader(gl, type, source) {
 	  var shader = gl.createShader(type);
@@ -539,6 +540,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 
 	canvas.onclick = function() {
 	  canvas.requestPointerLock();
+	  //canvas.webkitRequestFullscreen();
 	};
 
 	var locked = false;
@@ -596,9 +598,16 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager"], function(Wad, m4, Mesh, Te
 			
 			
 			if(ispow2(image.width) && ispow2(image.height)) {
+				
+				/*
 				gl.generateMipmap(gl.TEXTURE_2D);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);*/
+				
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+				
+				
 			}
 				
 			else {

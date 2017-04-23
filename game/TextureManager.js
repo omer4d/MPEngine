@@ -50,6 +50,7 @@ define([], function() {
 		for(var i = 0; i < urls.length; ++i) {
 			var image = new Image();
 			image.src = urls[i];
+			image.key = relUrls[i].slice(0, relUrls[i].lastIndexOf("."));
 			image.addEventListener('load', successCallback);
 			image.addEventListener('error', errorCallback);
 		}
@@ -59,7 +60,12 @@ define([], function() {
 		this.gl = gl;
 		this.temp = {};
 		this.oldTemp = {};
+		this.baseUrl = "";
 	}
+	
+	TextureManager.prototype.setBaseUrl = function(baseUrl) {
+		this.baseUrl = baseUrl;
+	};
 	
 	TextureManager.prototype.begin = function() { 
 		this.oldTemp = {};
