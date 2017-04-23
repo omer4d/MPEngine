@@ -1,33 +1,6 @@
-require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Input"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh, Input) {
-	console.log(window.location.pathname);
+require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Input", "GLUtil"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh, Input, GLUtil) {
 	
-	function createShader(gl, type, source) {
-	  var shader = gl.createShader(type);
-	  gl.shaderSource(shader, source);
-	  gl.compileShader(shader);
-	  var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-	  if (success) {
-		return shader;
-	  }
-	 
-	  console.log(source, "\n", gl.getShaderInfoLog(shader));
-	  gl.deleteShader(shader);
-	}
-
-	function createProgram(gl, vertexShader, fragmentShader) {
-	  var program = gl.createProgram();
-	  gl.attachShader(program, vertexShader);
-	  gl.attachShader(program, fragmentShader);
-	  gl.linkProgram(program);
-	  var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-	  if (success) {
-		return program;
-	  }
-	 
-	  console.log(gl.getProgramInfoLog(program));
-	  gl.deleteProgram(program);
-	}
-
+	
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
 	var WAD_NAME = "/data/e1m1.wad";
@@ -171,9 +144,9 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	var gl = canvas.getContext("webgl", {antialias: true, depth: true });
 
 
-	var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-	var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-	var program = createProgram(gl, vertexShader, fragmentShader);
+	var vertexShader = GLUtil.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+	var fragmentShader = GLUtil.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+	var program = GLUtil.createProgram(gl, vertexShader, fragmentShader);
 
 	var positionLocation = gl.getAttribLocation(program, "a_position");
 	var colorLocation = gl.getAttribLocation(program, "a_color");
@@ -217,8 +190,6 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	  var arrayBuffer = oReq.response;
 	  if (arrayBuffer) {
 		level = new Level(Wad.read(arrayBuffer));
-		
-		
 		console.log(level.lumps);
 		
 		var texList = level.genTextureNameList();
@@ -230,21 +201,6 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 			levelMesh = new LevelMesh(gl, level, textureManager);
 			renderLoop();
 		});
-		
-		/*
-		var image = new Image();
-		image.src = "data/patch.png";
-		image.addEventListener('load', function(event) {
-		  console.log("img wh: ", event.target.width, event.target.height);
-		  
-		  gl.bindTexture(gl.TEXTURE_2D, texture);
-		  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
-		  gl.generateMipmap(gl.TEXTURE_2D);
-		  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-		  //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-		  
-		  
-		});*/
 	  }
 	};
 
