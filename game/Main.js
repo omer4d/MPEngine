@@ -1,4 +1,4 @@
-require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh) {
+require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Input"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh, Input) {
 	console.log(window.location.pathname);
 	
 	function createShader(gl, type, source) {
@@ -154,16 +154,11 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh"], func
 		window.setTimeout(callback, 1000 / 60);
 	};
 
-	var keystates = {};
 
-	window.addEventListener('keydown', function(e) {
-		keystates[e.key] = true;
-	});
 
-	window.addEventListener('keyup', function(e) {
-		keystates[e.key] = false;
-	});
-
+	
+	
+	
 	var frameCount = 0;
 	var fpsCounter = document.getElementById("fpsCounter");
 	setInterval(function() {
@@ -198,38 +193,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh"], func
 	var yaw = 0, pitch = 0;
 
 
-	var lockedMouseMoveListener = function(e) {
-		yaw += e.movementX / 250;
-		pitch = Math.max(Math.min(pitch + e.movementY / 250, Math.PI / 2), -Math.PI / 2);
-	};
 
-
-	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
-	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock || document.canvasExitPointerLock;
-
-	canvas.onclick = function() {
-	  canvas.requestPointerLock();
-	  //canvas.webkitRequestFullscreen();
-	};
-
-	var locked = false;
-
-	function lockChangeAlert() {
-		var newLocked = document.pointerLockElement === canvas;
-		
-	  if (!locked && newLocked) {
-		console.log('The pointer lock status is now locked');
-		window.addEventListener("mousemove", lockedMouseMoveListener, false);
-	  } else if(!newLocked && locked) {
-		console.log('The pointer lock status is now unlocked');  
-		window.removeEventListener("mousemove", lockedMouseMoveListener, false);
-	  }
-	  
-	  locked = newLocked;
-	}
-
-	document.addEventListener('pointerlockchange', lockChangeAlert, false);
-	document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
 
 
 
@@ -287,39 +251,42 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh"], func
 	oReq.send(null);
 
 	var lastRenderTime = performance.now();
-
+	Input.setMouseLockable(canvas);
+	
 	function renderLoop() {
+		Input.refresh();
+		
 		var t = performance.now();
 		var dt = (t - lastRenderTime)/1000;
 		lastRenderTime = t;
 		var moveSpeed = 0;
 		var newPosX, newPosY;
 		
-		//console.log(keystates);
+		moveSpeed = Input.keyPressed("p") ? 5 : 32;
 		
-		//if(keystates["LeftShift"]) {
-		//	moveSpeed
-		//}
-		moveSpeed = keystates["p"] ? 5 : 32;
-		
-		if(keystates["w"]) {
+		if(Input.keyPressed("w")) {
 			velX += moveSpeed * Math.cos(yaw);
 			velY += moveSpeed * Math.sin(yaw);
 		}
 		
-		if(keystates["s"]) {
+		if(Input.keyPressed("s")) {
 			velX += -moveSpeed * Math.cos(yaw);
 			velY += -moveSpeed * Math.sin(yaw);
 		}
 		
-		if(keystates["d"]) {
+		if(Input.keyPressed("d")) {
 			velX += -moveSpeed * Math.sin(yaw);
 			velY += moveSpeed * Math.cos(yaw);
 		}
 			
-		if(keystates["a"]) {
+		if(Input.keyPressed("a")) {
 			velX += moveSpeed * Math.sin(yaw);
 			velY += -moveSpeed * Math.cos(yaw);
+		}
+		
+		if(Input.mouseLocked()) {
+			yaw += Input.mouseDeltaX() / 250;
+			pitch = Math.max(Math.min(pitch + Input.mouseDeltaY() / 250, Math.PI / 2), -Math.PI / 2);
 		}
 		
 		/*
@@ -342,7 +309,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh"], func
 		posY = newPosY;
 		
 		var res = {};
-		if(level.vsCircle(posX, posY, posH, 25, res) && !keystates["q"]) {
+		if(level.vsCircle(posX, posY, posH, 25, res) && !Input.keyPressed("q")) {
 			posX += res.mtx;
 			posY += res.mty;
 		}
@@ -355,7 +322,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh"], func
 		var h1 = oldSec.floorHeight;
 		
 		if((!leavingSector(lumps, {x: posX, y: posY}, {x: newPosX, y: newPosY}) &&
-			newSec.floorHeight - h1 < 30 && newSec.ceilHeight > h1 + 60) || keystates["q"]) {
+			newSec.floorHeight - h1 < 30 && newSec.ceilHeight > h1 + 60) || Input.keyPressed("q")) {
 			posX = newPosX;
 			posY = newPosY;
 		}*/
@@ -363,13 +330,13 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh"], func
 		velX *= 0.9;
 		velY *= 0.9;
 		
-		if(keystates["ArrowLeft"])
+		if(Input.keyPressed("ArrowLeft"))
 			yaw -= 3 * dt;
-		if(keystates["ArrowRight"])
+		if(Input.keyPressed("ArrowRight"))
 			yaw += 3 * dt;
-		if(keystates["ArrowUp"])
+		if(Input.keyPressed("ArrowUp"))
 			pitch -= 3 * dt;
-		if(keystates["ArrowDown"])
+		if(Input.keyPressed("ArrowDown"))
 			pitch += 3 * dt;
 		
 
