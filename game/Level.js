@@ -216,12 +216,20 @@ define([], function() {
 			
 			if(d1 < d2) {
 				d1 = Math.sqrt(d1);
-				out.mtx = vx1/d1 * (rad - d1);
-				out.mty = vy1/d1 * (rad - d1);
+				var nx = vx1/d1;
+				var ny = vy1/d1;
+				out.mtx = nx * (rad - d1);
+				out.mty = ny * (rad - d1);
+				out.nx = nx;
+				out.ny = ny;
 			}else {
 				d2 = Math.sqrt(d2);
-				out.mtx = vx2/d2 * (rad - d2);
-				out.mty = vy2/d2 * (rad - d2);
+				var nx = vx2/d2;
+				var ny = vy2/d2;
+				out.mtx = nx * (rad - d2);
+				out.mty = ny * (rad - d2);
+				out.nx = nx;
+				out.ny = ny;
 			}
 			
 			return true;
@@ -233,6 +241,8 @@ define([], function() {
 		var posX = x, posY = y;
 		var subs = this.findCircleSubsector({x: posX, y: posY}, rad);
 		var flag = false;
+		var nx = 0;
+		var ny = 0;
 		
 		for(var z = 0; z < 5; ++z) {
 			var mtx = 0;
@@ -258,6 +268,8 @@ define([], function() {
 							circleVsSeg(seg, posX, posY, rad, out)) {
 							mtx += out.mtx;
 							mty += out.mty;
+							nx += out.nx;
+							ny += out.ny;
 							++count;
 							flag = true;
 						}
@@ -271,8 +283,11 @@ define([], function() {
 			}
 		}
 		
+		var nlen = Math.sqrt(nx*nx + ny*ny);
 		res.mtx = posX - x;
-		res.mty = posY - y;
+		res.mtz = posY - y;
+		res.nx = nx / nlen;
+		res.nz = ny / nlen;
 		
 		/*
 		var oldSec = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY});

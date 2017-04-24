@@ -188,7 +188,10 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		
 		if(level.vsCircle(p.pos.x, p.pos.z, p.pos.y, playerHeight, 25, res) && !Input.keyPressed("q")) {
 			p.pos.x += res.mtx;
-			p.pos.z += res.mty;
+			p.pos.z += res.mtz;
+			var vnp = p.vel.x * res.nx + p.vel.z * res.nz;
+			p.vel.x -= vnp * res.nx;
+			p.vel.z -= vnp * res.nz;
 		}
 		
 
@@ -196,7 +199,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		
 		if(grounded) {
 			if(p.bufferedJumps > 0) {
-				p.vel.y += 14000 * dt;
+				p.vel.y += 15000 * dt;
 				--p.bufferedJumps;
 			}else {
 				if(p.moveDir.length() < 0.1) {
@@ -284,9 +287,8 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		
 		movePlayer(player, level, dt);
 		
-		document.getElementById("speedCounter").textContent =
-		"Speed: " + Math.floor(player.xzSpeed()) +
-		" --- Pos: " + Math.floor(player.pos.x) + ", " + Math.floor(player.pos.z);
+		document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(player.xzSpeed());
+		//" --- Pos: " + Math.floor(player.pos.x) + ", " + Math.floor(player.pos.z);
 		
 		var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight * (1.2);
 		var zNear = 5;
