@@ -104,7 +104,7 @@ define([], function() {
 	};
 	
 	
-	function findCircleSubsectorHelper(lumps, idx, point, rad) {
+	function findCircleSubsectorsHelper(lumps, idx, point, rad) {
 		var LEAF_FLAG = 1 << 15;
 		
 		if(idx & LEAF_FLAG) {
@@ -121,20 +121,20 @@ define([], function() {
 			var dot = nx*dx+ny*dy;
 			
 			if(dot >= rad) {
-				return findCircleSubsectorHelper(lumps, node.leftChildIdx, point, rad);
+				return findCircleSubsectorsHelper(lumps, node.leftChildIdx, point, rad);
 			}
 			else if(dot <= -rad) {
-				return findCircleSubsectorHelper(lumps, node.rightChildIdx, point, rad);
+				return findCircleSubsectorsHelper(lumps, node.rightChildIdx, point, rad);
 			}
 			else {
-				return findCircleSubsectorHelper(lumps, node.leftChildIdx, point, rad).
-							concat(findCircleSubsectorHelper(lumps, node.rightChildIdx, point, rad));
+				return findCircleSubsectorsHelper(lumps, node.leftChildIdx, point, rad).
+							concat(findCircleSubsectorsHelper(lumps, node.rightChildIdx, point, rad));
 			}
 		}
 	}
 	
-	Level.prototype.findCircleSubsector = function(point, rad) {
-		return findCircleSubsectorHelper(this.lumps, this.lumps.GL_NODES.length - 1, point, rad);
+	Level.prototype.findCircleSubsectors = function(point, rad) {
+		return findCircleSubsectorsHelper(this.lumps, this.lumps.GL_NODES.length - 1, point, rad);
 	};
 	
 	Level.prototype.pointSegDist = function(seg, point) {
@@ -239,7 +239,7 @@ define([], function() {
 	Level.prototype.vsCircle = function(x, y, h, ph, rad, res) {
 		var lumps = this.lumps;
 		var posX = x, posY = y;
-		var subs = this.findCircleSubsector({x: posX, y: posY}, rad);
+		var subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
 		var flag = false;
 		var nx = 0;
 		var ny = 0;
