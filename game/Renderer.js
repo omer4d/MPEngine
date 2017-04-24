@@ -1,4 +1,6 @@
 define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
+	var DEBUG_SIMPLE_SHADERS = true;
+	
 	var vertexShaderSource = `
 		attribute vec4 a_position;
 		attribute vec4 a_color;
@@ -102,7 +104,7 @@ define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
 	
 	function Renderer(gl, levelMesh) {
 		var vertexShader = GLUtil.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-		var fragmentShader = GLUtil.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+		var fragmentShader = GLUtil.createShader(gl, gl.FRAGMENT_SHADER, DEBUG_SIMPLE_SHADERS ? simpleFragmentShaderSource : fragmentShaderSource);
 		var program = GLUtil.createProgram(gl, vertexShader, fragmentShader);
 
 		var positionLocation = gl.getAttribLocation(program, "a_position");

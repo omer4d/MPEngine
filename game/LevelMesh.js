@@ -1,4 +1,7 @@
 define(["Mesh", "Wad"], function(Mesh, Wad) {
+	var DEBUG_SHOW_SUBSECTORS = true;
+	var DEBUG_SHOW_GRID = true;
+	
 	function wadToMesh(gl, level, texMan) {
 		var lumps = level.lumps;
 		var mesh = new Mesh(gl);
@@ -111,17 +114,30 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 			var h1 = sector.floorHeight;
 			var h2 = sector.ceilHeight;
 			
-			var r = sector.light;//Math.floor(Math.random() * 100 + 100);
-			var g = sector.light;//Math.floor(Math.random() * 100 + 100);
-			var b = sector.light;//Math.floor(Math.random() * 100 + 100);
+			var r, g, b;
+			
+			if(DEBUG_SHOW_SUBSECTORS) {
+				r = Math.floor(Math.random() * 100 + 100);
+				g = Math.floor(Math.random() * 100 + 100);
+				b = Math.floor(Math.random() * 100 + 100);
+			}else {
+				r = sector.light;
+				g = sector.light;
+				b = sector.light;
+			}
 			
 			for(var j = 1; j < ssect.segNum - 1; ++j) {
 				var seg = lumps.GL_SEGS[ssect.firstSegIdx + j];
 				var tseg = level.translateGlSeg(seg);
 				var br = 0.8 + Math.random() * 0.2;
-				var r1 = r;//255;//Math.floor(r * br);
-				var g1 = r;//255;//Math.floor(g * br);
-				var b1 = r;//255;//Math.floor(b * br);
+				
+				var r1 = Math.floor(r);
+				var g1 = Math.floor(g);
+				var b1 = Math.floor(b);
+				
+				//var r1 = r;//255;//
+				//var g1 = r;//255;//
+				//var b1 = r;//255;//
 				
 				// floor
 				initTex(sector.floorTexName);
@@ -231,7 +247,7 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 		
 		triTexList.forEach(function(key) {
 			
-			submeshes.push({tex: texMan.get(key) ? texMan.get(key).handle : null,
+			submeshes.push({tex: texMan.get(key) ? texMan.get(DEBUG_SHOW_GRID ? "debug_grid" : key).handle : null,
 							start: jointTris.length/3, len: tris[key].length/3});
 			Array.prototype.push.apply(jointTris, tris[key]);
 		});

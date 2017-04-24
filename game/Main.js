@@ -173,18 +173,6 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		
 		var grounded = false;
 		var res = {};
-		var psec = level.findSector({x: p.pos.x, y: p.pos.z});
-		
-		if(p.pos.y < psec.floorHeight) {
-			p.pos.y = psec.floorHeight;
-			p.vel.y = 0;
-			grounded = true;
-		}
-		
-		if(p.pos.y + playerHeight > psec.ceilHeight) {
-			p.pos.y = psec.ceilHeight - playerHeight;
-			p.vel.y = 0;
-		}
 		
 		if(level.vsCircle(p.pos.x, p.pos.z, p.pos.y, playerHeight, 25, res) && !Input.keyPressed("q")) {
 			p.pos.x += res.mtx;
@@ -193,6 +181,19 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 			p.vel.x -= vnp * res.nx;
 			p.vel.z -= vnp * res.nz;
 		}
+		
+		if(p.pos.y < res.floorHeight) {
+			p.pos.y = res.floorHeight;
+			p.vel.y = 0;
+			grounded = true;
+		}
+		
+		if(p.pos.y + playerHeight > res.ceilHeight) {
+			p.pos.y = res.ceilHeight - playerHeight;
+			p.vel.y = 0;
+		}
+		
+
 		
 
 	
@@ -251,7 +252,7 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	var renderer;
 	
 	//var player = new Player(1032, 0, -3200);
-	var player = new Player(2000, 0, 1000);
+	var player = new Player(1900, 0, 900);
 	//var player = new Player(-400, 0, 300);
 	
 	oReq.onload = function (oEvent) {
@@ -264,6 +265,8 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		textureManager.begin();
 		for(var i = 0; i < texList.length; ++i)
 			textureManager.add(texList[i], "data/textures/" + texList[i] + ".png");
+		
+		textureManager.add("debug_grid", "data/grid.png");
 		
 		textureManager.end(function() {
 			levelMesh = new LevelMesh(gl, level, textureManager);
