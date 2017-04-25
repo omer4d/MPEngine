@@ -77,10 +77,37 @@ define(["Level", "Wad"], function(Level, Wad) {
 		});
 	}
 	
+	function registerAtlasLoader(rm) {
+		rm.registerLoader("atlas", function(rm, url, alias) {
+			var request = new XMLHttpRequest();
+			request.open('GET', url, true);
+			request.responseType = "json";
+			
+			request.onload = function() {
+				var sheets = request.response;
+				var atlas = {};
+				var lastSlash = url.lastIndexOf("/");
+				var base = url.slice(0, lastSlash < 0 ? 0 : (lastSlash + 1));
+				
+				for(var i = 0; i < sheets.length; ++i)
+					rm.load(base + sheets[i].meta.image);
+				
+				rm.onDone(alias, request.status >= 200 && request.status < 400 ? sheets : null);
+			};
+
+			request.onerror = function() {
+				rm.onDone(alias, null);
+			};
+
+			request.send();
+		});
+	}
+	
 	return {
 		register: function(rm, gl) {
 			registerTextureLoader(rm, gl);
 			registerLevelLoader(rm);
+			registerAtlasLoader(rm);
 		}
 	};
 });

@@ -1,4 +1,4 @@
-define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
+define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 	var DEBUG_SIMPLE_SHADERS = false;
 	
 	var vertexShaderSource = `
@@ -58,7 +58,8 @@ define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
 			float minz = -n;
 			float maxz = -1000.0;
 			
-			vec3 t = texture2D(u_texture, v_texcoord).xyz;
+			vec4 t4 = texture2D(u_texture, v_texcoord);
+			vec3 t = t4.xyz;
 			float dark = 1.0 - v_color.r;
 			float finalDarkness = 0.0;
 			
@@ -98,7 +99,7 @@ define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
 			
 			vec3 mixed = mix(greycol, t, fd2);
 			
-			gl_FragColor = vec4(vec3(mixed *    finalDarkness * 1.3+0.1), 1.0);
+			gl_FragColor = vec4(vec3(mixed *    finalDarkness * 1.3+0.1), t4.a);
 		}
 		`;
 	
@@ -113,11 +114,17 @@ define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
 		var texcoordLocation = gl.getAttribLocation(program, "a_texcoord");
 		var textureLocation = gl.getUniformLocation(program, "u_texture");
 		
+		var sprites = new DynamicMesh(gl, 6*100);
+		var lastSpriteTex = 0;
+		
 		this.draw = function(projectionMatrix, cameraMatrix) {
 			gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 			//gl.enable(gl.CULL_FACE);
 			gl.enable(gl.DEPTH_TEST);
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+			gl.enable(gl.BLEND);
+			
 
 			gl.useProgram(program);
 			
@@ -127,6 +134,52 @@ define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
 			gl.uniformMatrix4fv(matrixLocation, false, viewProjectionMatrix);
 			gl.uniform1i(textureLocation, 0);
 			levelMesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+		};
+		
+		this.beginSprites = function() {
+			sprites.begin();
+			lastSpriteTex = null;
+		};
+		
+		this.pushSprite = function(tex, x, y, z, w, h) {
+			if(tex != lastSpriteTex) {
+				gl.bindTexture(gl.TEXTURE_2D, lastSpriteTex);
+				sprites.flush({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+				sprites.begin();
+			}
+			
+			sprites.coord(x, y, z);
+			sprites.texCoord(0, 0);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x, y + h, z);
+			sprites.texCoord(0, 1);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x + w, y + h, z);
+			sprites.texCoord(1, 1);
+			sprites.color(255, 255, 255);
+			
+			
+			sprites.coord(x + w, y + h, z);
+			sprites.texCoord(1, 1);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x + w, y, z);
+			sprites.texCoord(1, 0);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x, y, z);
+			sprites.texCoord(0, 0);
+			sprites.color(255, 255, 255);
+			
+			lastSpriteTex = tex;
+		};
+		
+		this.endSprites = function() {
+			gl.bindTexture(gl.TEXTURE_2D, lastSpriteTex);
+			sprites.flush({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+			sprites.begin();
 		};
 	}
 	

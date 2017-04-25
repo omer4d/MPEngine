@@ -1,5 +1,7 @@
 define([], function() {
-	function DynamicMesh(vertexCap) {
+	function DynamicMesh(gl, vertexCap) {
+		this.gl = gl;
+		
 		this.vertexCap = vertexCap;
 		this.coordIdx = 0;
 		this.colorIdx = 0;
@@ -42,6 +44,11 @@ define([], function() {
 	};
 	
 	DynamicMesh.prototype.flush = function(locations) {
+		if(this.coordIdx === 0)
+			return;
+		
+		var gl = this.gl;
+		
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.coordBuff);
 		gl.bufferData(gl.ARRAY_BUFFER, this.coordData, gl.STATIC_DRAW);
 		gl.enableVertexAttribArray(locations.coords);
