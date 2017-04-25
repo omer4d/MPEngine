@@ -267,11 +267,12 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	
 	resMan.begin();
 	resMan.add("debug_grid", "data/grid.png");
-	resMan.add("data/sprites/sprites.atlas");
+	resMan.add("atlas", "data/sprites/sprites.atlas");
 	resMan.add("%ss%", "data/sprites/sprites0.png");
 	resMan.add("%current_level%", WAD_NAME);
 	resMan.end(function() {
-		//console.log(resMan.get("data/sprites/sprites.atlas"));
+		//console.log(resMan.get("atlas"));
+		//console.log();
 		level = resMan.get("%current_level%");
 		levelMesh = new LevelMesh(gl, level, resMan);
 		renderer = new Renderer(gl, levelMesh);
@@ -304,12 +305,14 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 		
 		renderer.draw(projectionMatrix, cameraMatrix);
 		
-		/*
 		renderer.beginSprites();
-		for(var i = 0; i < 100; ++i) {
-			renderer.pushSprite(resMan.get("data/sprites/sprites1.png").handle, 1032, 0, -3200 + i * 2, 100, 100);
-		}
-		renderer.endSprites();*/
+		var reg = resMan.get("atlas").get("spidi6");
+		renderer.pushSprite(reg, 1032, 0, -3200);
+		
+		//for(var i = 0; i < 100; ++i) {
+			//renderer.pushSprite(reg.textureHandle, 1032, 0, -3200, reg.w, reg.h);
+		//}
+		renderer.endSprites();
 		
 		++frameCount;
 		requestAnimFrame(renderLoop);

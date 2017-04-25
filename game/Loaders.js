@@ -1,4 +1,4 @@
-define(["Level", "Wad"], function(Level, Wad) {
+define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 	function ispow2(x) {
 		return (~x & (x - 1)) === (x - 1);
 	}
@@ -90,9 +90,9 @@ define(["Level", "Wad"], function(Level, Wad) {
 				var base = url.slice(0, lastSlash < 0 ? 0 : (lastSlash + 1));
 				
 				for(var i = 0; i < sheets.length; ++i)
-					rm.load(base + sheets[i].meta.image);
+					rm.load(sheets[i].meta.image, base + sheets[i].meta.image);
 				
-				rm.onDone(alias, request.status >= 200 && request.status < 400 ? sheets : null);
+				rm.onDone(alias, request.status >= 200 && request.status < 400 ? new SpriteAtlas(rm, sheets) : null);
 			};
 
 			request.onerror = function() {

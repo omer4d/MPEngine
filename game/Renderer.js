@@ -141,6 +141,8 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 			lastSpriteTex = null;
 		};
 		
+		
+		/*
 		this.pushSprite = function(tex, x, y, z, w, h) {
 			if(tex != lastSpriteTex) {
 				gl.bindTexture(gl.TEXTURE_2D, lastSpriteTex);
@@ -174,6 +176,47 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 			sprites.color(255, 255, 255);
 			
 			lastSpriteTex = tex;
+		};*/
+		
+		this.pushSprite = function(reg, x, y, z) {
+			if(reg.textureHandle != lastSpriteTex) {
+				gl.bindTexture(gl.TEXTURE_2D, reg.textureHandle);
+				sprites.flush({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+				sprites.begin();
+			}
+			
+			sprites.coord(x, y, z);
+			sprites.texCoord(reg.u0, reg.v0);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x, y + reg.height, z);
+			sprites.texCoord(reg.u0, reg.v1);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x + reg.width, y + reg.height, z);
+			sprites.texCoord(reg.u1, reg.v1);
+			sprites.color(255, 255, 255);
+			
+			
+			sprites.coord(x + reg.width, y + reg.height, z);
+			sprites.texCoord(reg.u1, reg.v1);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x + reg.width, y, z);
+			sprites.texCoord(reg.u1, reg.v0);
+			sprites.color(255, 255, 255);
+			
+			sprites.coord(x, y, z);
+			sprites.texCoord(reg.u0, reg.v0);
+			sprites.color(255, 255, 255);
+			
+			lastSpriteTex = reg.textureHandle;
+		};
+		
+		this.endSprites = function() {
+			gl.bindTexture(gl.TEXTURE_2D, lastSpriteTex);
+			sprites.flush({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+			sprites.begin();
 		};
 		
 		this.endSprites = function() {
