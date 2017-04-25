@@ -89,6 +89,10 @@ define([], function() {
 		this.extensions.gif = loader;
 	};
 	
+	ResourceManager.prototype.registerLoader = function(ext, loader) {
+		this.extensions[ext] = loader;
+	};
+	
 	ResourceManager.prototype.get = function(alias) {
 		if(this.remaining > 0)
 			throw new Error("ResourceManager: tried to call 'get' beforce loading was finished!");

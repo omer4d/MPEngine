@@ -242,10 +242,9 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	var canvas = document.getElementById("myCanvas");
 	var gl = canvas.getContext("webgl", {antialias: true, depth: true });
 
-	var oReq = new XMLHttpRequest();
-	oReq.open("GET", WAD_NAME, true);
-	oReq.responseType = "arraybuffer";
-
+	//var oReq = new XMLHttpRequest();
+	//oReq.open("GET", WAD_NAME, true);
+	//oReq.responseType = "arraybuffer";
 	//ResourceLoader.registerTextureLoader(gl);
 	//ResourceLoader.load(["data/sprites/sprites0.png"], function(res) {
 	//	console.log(res);
@@ -253,8 +252,40 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	
 	var level;
 	//var resMan = new TextureManager(gl);
+	
 	var resMan = new ResourceManager();
 	resMan.registerTextureLoader(gl);
+	
+	
+	
+	
+	resMan.registerLoader("wad", function(rm, url, alias) {
+		var request = new XMLHttpRequest();
+		request.open('GET', url, true);
+		request.responseType = "arraybuffer";
+			
+		request.onload = function() {
+			var level = new Level(Wad.read(request.response));
+			console.log(level.lumps);
+			var texList = level.genTextureNameList();
+			
+			for(var i = 0; i < texList.length; ++i)
+				rm.load(texList[i], "data/textures/" + texList[i] + ".png");
+			
+			rm.onDone(alias, request.status >= 200 && request.status < 400 ? level : null);
+		};
+
+		request.onerror = function() {
+			rm.onDone(alias, null);
+		};
+
+		request.send();
+	});
+	
+	
+	
+	
+	
 	var levelMesh;
 	var renderer;
 	
@@ -262,32 +293,20 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	//var player = new Player(1900, 0, 900);
 	//var player = new Player(-400, 0, 300);
 	
-	oReq.onload = function (oEvent) {
-	  var arrayBuffer = oReq.response;
-	  if (arrayBuffer) {
-		level = new Level(Wad.read(arrayBuffer));
-		console.log(level.lumps);
-		
-		var texList = level.genTextureNameList();
-		resMan.begin();
-		for(var i = 0; i < texList.length; ++i)
-			resMan.add(texList[i], "data/textures/" + texList[i] + ".png");
-		
-		resMan.add("debug_grid", "data/grid.png");
-		resMan.add("data/sprites/sprites0.json");
-		
-		resMan.end(function() {
-			console.log(resMan.get("data/sprites/sprites0.json"));
-			
-			levelMesh = new LevelMesh(gl, level, resMan);
-			renderer = new Renderer(gl, levelMesh);
-			renderLoop();
-		});
-	  }
-	};
-
-	oReq.send(null);
-
+	
+	
+	resMan.begin();
+	resMan.add("debug_grid", "data/grid.png");
+	resMan.add("data/sprites/sprites0.json");
+	resMan.add("%current_level%", WAD_NAME);
+	resMan.end(function() {
+		console.log(resMan.get("data/sprites/sprites0.json"));
+		level = resMan.get("%current_level%");
+		levelMesh = new LevelMesh(gl, level, resMan);
+		renderer = new Renderer(gl, levelMesh);
+		renderLoop();
+	});
+	
 	var lastRenderTime = performance.now();
 	Input.setMouseLockable(canvas);
 	
