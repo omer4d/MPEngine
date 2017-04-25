@@ -1,4 +1,4 @@
-require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh) {
+require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
 	var WAD_NAME = "/data/e1m1.wad";
@@ -254,37 +254,7 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	//var resMan = new TextureManager(gl);
 	
 	var resMan = new ResourceManager();
-	resMan.registerTextureLoader(gl);
-	
-	
-	
-	
-	resMan.registerLoader("wad", function(rm, url, alias) {
-		var request = new XMLHttpRequest();
-		request.open('GET', url, true);
-		request.responseType = "arraybuffer";
-			
-		request.onload = function() {
-			var level = new Level(Wad.read(request.response));
-			console.log(level.lumps);
-			var texList = level.genTextureNameList();
-			
-			for(var i = 0; i < texList.length; ++i)
-				rm.load(texList[i], "data/textures/" + texList[i] + ".png");
-			
-			rm.onDone(alias, request.status >= 200 && request.status < 400 ? level : null);
-		};
-
-		request.onerror = function() {
-			rm.onDone(alias, null);
-		};
-
-		request.send();
-	});
-	
-	
-	
-	
+	Loaders.register(resMan, gl);
 	
 	var levelMesh;
 	var renderer;
