@@ -33,12 +33,39 @@ define([], function() {
 		return {handle: texture, width: image.width, height: image.height};
 	}
 	
+	function makeGenericLoader(responseType) {
+		return function(url, alias, loaderCallback) {
+			var request = new XMLHttpRequest();
+			request.open('GET', url, true);
+			request.responseType = responseType;
+			
+			request.onload = function() {
+				loaderCallback(alias, request.status >= 200 && request.status < 400 ? request.response : null);
+			};
+
+			request.onerror = function() {
+				loaderCallback(alias, null);
+			};
+
+			request.send();
+		};
+	}
+	
 	function ResourceManager() {
 		this.extensions = {};
 		this.temp = {};
 		this.oldTemp = {};
 		this.ready = true;
+		this.registerDefaultLoaders();
 	}
+	
+	ResourceManager.prototype.registerDefaultLoaders = function() {
+		var textLoader = makeGenericLoader("text");
+		this.extensions.json = makeGenericLoader("json");
+		this.extensions.txt = textLoader;
+		this.extensions.frag = textLoader;
+		this.extensions.vert = textLoader;
+	};
 	
 	ResourceManager.prototype.registerTextureLoader = function(gl) {
 		var loader = function(url, alias, loaderCallback) {
@@ -76,6 +103,7 @@ define([], function() {
 	};
 	
 	ResourceManager.prototype.add = function(alias, url) {
+		url = url || alias;
 		this.temp[alias] = url;
 	};
 	
@@ -105,13 +133,20 @@ define([], function() {
 		var resultHandler = function(alias, data) {
 			self.temp[alias] = data;
 			
+			if(!data)
+				console.log("Failed to load '" + alias + "'");
+			
 			++count;
 			if(count === newPairs.length)
 				done();
 		};
 		
 		for(var i = 0; i < newPairs.length; ++i) {
-			this.extensions.png(newPairs[i].url, newPairs[i].alias, resultHandler);
+			var ext = newPairs[i].url.slice(newPairs[i].url.lastIndexOf(".") + 1).toLowerCase();
+			if(ext in this.extensions)
+				this.extensions[ext](newPairs[i].url, newPairs[i].alias, resultHandler);
+			else
+				throw new Error("ResourceManager: Unregistered extension '." + ext + "'");
 		}
 	};
 	

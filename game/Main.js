@@ -274,8 +274,11 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 			resMan.add(texList[i], "data/textures/" + texList[i] + ".png");
 		
 		resMan.add("debug_grid", "data/grid.png");
+		resMan.add("data/sprites/sprites0.json");
 		
 		resMan.end(function() {
+			console.log(resMan.get("data/sprites/sprites0.json"));
+			
 			levelMesh = new LevelMesh(gl, level, resMan);
 			renderer = new Renderer(gl, levelMesh);
 			renderLoop();
