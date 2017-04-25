@@ -1,4 +1,4 @@
-require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh, Input, GLUtil, Renderer, Vector3) {
+require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceLoader", "DynamicMesh"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceLoader, DynamicMesh) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
 	var WAD_NAME = "/data/e1m1.wad";
@@ -246,6 +246,11 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	oReq.open("GET", WAD_NAME, true);
 	oReq.responseType = "arraybuffer";
 
+	ResourceLoader.registerTextureLoader(gl);
+	//ResourceLoader.load(["data/sprites/sprites0.png"], function(res) {
+	//	console.log(res);
+	//});
+	
 	var level;
 	var textureManager = new TextureManager(gl);
 	var levelMesh;
