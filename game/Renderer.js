@@ -1,5 +1,5 @@
 define(["Matrix4", "GLUtil"], function(m4, GLUtil) {
-	var DEBUG_SIMPLE_SHADERS = true;
+	var DEBUG_SIMPLE_SHADERS = false;
 	
 	var vertexShaderSource = `
 		attribute vec4 a_position;

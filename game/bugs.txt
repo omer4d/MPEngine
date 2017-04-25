@@ -1,3 +1,6 @@
 e1m1 blue area - 41 fps??? (apparently not related to collisions)
 e1m1 slime area misaligned secret texture
 sector side function returns opposite side?
+
+standing under a sector edge and jumping into the ceiling will snap the player to the side of the edge
+head-on collision with the sector edge can produce a similar MTV so the situation is ambiguous without considering velocity

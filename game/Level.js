@@ -286,89 +286,44 @@ define([], function() {
 		}
 		
 			
-			var centerSub = this.findSector({x: posX, y: posY});
-			var floorHeight = centerSub.floorHeight;
-			var ceilHeight = centerSub.ceilHeight;
-			
-			
-			subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
-			//var floorHeight = -100000, ceilHeight = 100000;
-			//console.log(subs);
-			
-			for(i = 0; i < subs.length; ++i) {
-				for(var j = 0; j < subs[i].segNum; ++j) {
-					var tseg = lumps.GL_SEGS[subs[i].firstSegIdx + j];
-					if(tseg.linedefIdx !==  0xFFFF) {
-						var out = {};
-						var linedef = lumps.LINEDEFS[tseg.linedefIdx];
-						var v1 = lumps.VERTEXES[linedef.v1Idx];
-						var v2 = lumps.VERTEXES[linedef.v2Idx];
-						var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
-						var side = this.segSide(linedef, {x: posX, y: posY});
-						var otherSector = linedefSector(lumps, linedef, side === 1);
-						
-						//console.log(otherSector);
-						
-						if( !(!otherSector ||
-								otherSector.floorHeight > h + 30 ||
-								otherSector.ceilHeight < h + ph ||
-								otherSector.ceilHeight - otherSector.floorHeight < ph) &&
-							circleVsSeg(seg, posX, posY, rad, out)) {
-								
-							if(otherSector && otherSector.floorHeight > floorHeight)
-								floorHeight = otherSector.floorHeight;
-							if(otherSector && otherSector.ceilHeight < ceilHeight)
-								ceilHeight = otherSector.ceilHeight;
-								
-						}else {
-	
-						}
+		var centerSub = this.findSector({x: posX, y: posY});
+		var floorHeight = centerSub.floorHeight;
+		var ceilHeight = centerSub.ceilHeight;
+		
+		
+		subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
+		//var floorHeight = -100000, ceilHeight = 100000;
+		//console.log(subs);
+		
+		for(i = 0; i < subs.length; ++i) {
+			for(var j = 0; j < subs[i].segNum; ++j) {
+				var tseg = lumps.GL_SEGS[subs[i].firstSegIdx + j];
+				if(tseg.linedefIdx !==  0xFFFF) {
+					var out = {};
+					var linedef = lumps.LINEDEFS[tseg.linedefIdx];
+					var v1 = lumps.VERTEXES[linedef.v1Idx];
+					var v2 = lumps.VERTEXES[linedef.v2Idx];
+					var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
+					var side = this.segSide(linedef, {x: posX, y: posY});
+					var otherSector = linedefSector(lumps, linedef, side === 1);
+					
+					// If the adjacent sector is touched on the XZ plane and could be walked onto from the current pos:
+					if( !(!otherSector ||
+							otherSector.floorHeight > h + 30 ||
+							otherSector.ceilHeight < h + ph ||
+							otherSector.ceilHeight - otherSector.floorHeight < ph) &&
+						circleVsSeg(seg, posX, posY, rad, out)) {
+							
+						if(otherSector && otherSector.floorHeight > floorHeight)
+							floorHeight = otherSector.floorHeight;
+						if(otherSector && otherSector.ceilHeight < ceilHeight)
+							ceilHeight = otherSector.ceilHeight;
+							
 					}
 				}
 			}
-			
-			
-			/*
-			for(i = 0; i < subs.length; ++i) {
-				for(var j = 0; j < subs[i].segNum; ++j) {
-					var tseg = lumps.GL_SEGS[subs[i].firstSegIdx + j];
-					if(tseg.linedefIdx !==  0xFFFF) {
-						var out = {};
-						var linedef = lumps.LINEDEFS[tseg.linedefIdx];
-						var v1 = lumps.VERTEXES[linedef.v1Idx];
-						var v2 = lumps.VERTEXES[linedef.v2Idx];
-						var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
-						var side = this.segSide(linedef, {x: posX, y: posY});
-						var mySector = linedefSector(lumps, linedef, side === -1);
-						//var otherSector = linedefSector(lumps, linedef, side === 1);
-						
-						//console.log(mySector ? mySector.floorHeight : "N/A", otherSector ? otherSector.floorHeight : "N/A", mySector === //otherSector);
-						//console.log(linedef);
-						
-						//var posSidedef = lumps.SIDEDEFS[linedef.posSidedefIdx];
-						//var negSidedef = lumps.SIDEDEFS[linedef.negSidedefIdx];
-						
-						//console.log(posSidedef ? posSidedef.sectorIdx : "N/A", negSidedef ? negSidedef.sectorIdx : "N/A");
-						
-						
-						//if(otherSector && otherSector.floorHeight > floorHeight)
-							//floorHeight = otherSector.floorHeight;
-						//if(otherSector && otherSector.ceilHeight < ceilHeight)
-							//ceilHeight = otherSector.ceilHeight;
-						
-						if(mySector && mySector.floorHeight > floorHeight)
-							floorHeight = mySector.floorHeight;
-						if(mySector && mySector.ceilHeight < ceilHeight)
-							ceilHeight = mySector.ceilHeight;
-					}
-				}
-			}*/
-		
-		
-		
-		
-		
-		
+		}
+
 		var nlen = Math.sqrt(nx*nx + ny*ny);
 		res.mtx = posX - x;
 		res.mtz = posY - y;
@@ -376,19 +331,6 @@ define([], function() {
 		res.nz = ny / nlen;
 		res.floorHeight = floorHeight;
 		res.ceilHeight = ceilHeight;
-		
-		/*
-		var oldSec = findSector(lumps, lumps.NODES.length - 1, {x: posX, y: posY});
-		var newSec = findSector(lumps, lumps.NODES.length - 1, {x: newPosX, y: newPosY});
-		
-		var h1 = oldSec.floorHeight;
-		
-		if((!leavingSector(lumps, {x: posX, y: posY}, {x: newPosX, y: newPosY}) &&
-			newSec.floorHeight - h1 < 30 && newSec.ceilHeight > h1 + 60) || keystates["q"]) {
-			posX = newPosX;
-			posY = newPosY;
-		}*/
-		
 		
 		return flag;
 	};

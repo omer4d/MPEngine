@@ -1,7 +1,7 @@
 require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh, Input, GLUtil, Renderer, Vector3) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
-	var WAD_NAME = "/data/e1m2.wad";
+	var WAD_NAME = "/data/e1m1.wad";
 
 	window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
 	window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
@@ -251,8 +251,8 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	var levelMesh;
 	var renderer;
 	
-	//var player = new Player(1032, 0, -3200);
-	var player = new Player(1900, 0, 900);
+	var player = new Player(1032, 0, -3200);
+	//var player = new Player(1900, 0, 900);
 	//var player = new Player(-400, 0, 300);
 	
 	oReq.onload = function (oEvent) {

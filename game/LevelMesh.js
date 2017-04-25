@@ -1,6 +1,6 @@
 define(["Mesh", "Wad"], function(Mesh, Wad) {
-	var DEBUG_SHOW_SUBSECTORS = true;
-	var DEBUG_SHOW_GRID = true;
+	var DEBUG_SHOW_SUBSECTORS = false;
+	var DEBUG_SHOW_GRID = false;
 	
 	function wadToMesh(gl, level, texMan) {
 		var lumps = level.lumps;
@@ -246,7 +246,6 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 		var jointTexCoords = [];
 		
 		triTexList.forEach(function(key) {
-			
 			submeshes.push({tex: texMan.get(key) ? texMan.get(DEBUG_SHOW_GRID ? "debug_grid" : key).handle : null,
 							start: jointTris.length/3, len: tris[key].length/3});
 			Array.prototype.push.apply(jointTris, tris[key]);
