@@ -1,4 +1,4 @@
-require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceLoader", "DynamicMesh"], function(Wad, m4, Mesh, TextureManager, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceLoader, DynamicMesh) {
+require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
 	var WAD_NAME = "/data/e1m1.wad";
@@ -252,9 +252,9 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	//});
 	
 	var level;
-	//var textureManager = new TextureManager(gl);
-	var textureManager = new ResourceLoader();
-	textureManager.registerTextureLoader(gl);
+	//var resMan = new TextureManager(gl);
+	var resMan = new ResourceManager();
+	resMan.registerTextureLoader(gl);
 	var levelMesh;
 	var renderer;
 	
@@ -269,14 +269,14 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 		console.log(level.lumps);
 		
 		var texList = level.genTextureNameList();
-		textureManager.begin();
+		resMan.begin();
 		for(var i = 0; i < texList.length; ++i)
-			textureManager.add(texList[i], "data/textures/" + texList[i] + ".png");
+			resMan.add(texList[i], "data/textures/" + texList[i] + ".png");
 		
-		textureManager.add("debug_grid", "data/grid.png");
+		resMan.add("debug_grid", "data/grid.png");
 		
-		textureManager.end(function() {
-			levelMesh = new LevelMesh(gl, level, textureManager);
+		resMan.end(function() {
+			levelMesh = new LevelMesh(gl, level, resMan);
 			renderer = new Renderer(gl, levelMesh);
 			renderLoop();
 		});

@@ -33,14 +33,14 @@ define([], function() {
 		return {handle: texture, width: image.width, height: image.height};
 	}
 	
-	function ResourceLoader() {
+	function ResourceManager() {
 		this.extensions = {};
 		this.temp = {};
 		this.oldTemp = {};
 		this.ready = true;
 	}
 	
-	ResourceLoader.prototype.registerTextureLoader = function(gl) {
+	ResourceManager.prototype.registerTextureLoader = function(gl) {
 		var loader = function(url, alias, loaderCallback) {
 			var image = new Image();
 			image.src = url;
@@ -59,11 +59,11 @@ define([], function() {
 		this.extensions.gif = loader;
 	};
 	
-	ResourceLoader.prototype.get = function(alias) {
+	ResourceManager.prototype.get = function(alias) {
 		return this.ready ? this.temp[alias] : null;
 	};
 	
-	ResourceLoader.prototype.begin = function() {
+	ResourceManager.prototype.begin = function() {
 		var self = this;
 		self.oldTemp = {};
 		
@@ -75,11 +75,11 @@ define([], function() {
 		self.ready = false;
 	};
 	
-	ResourceLoader.prototype.add = function(alias, url) {
+	ResourceManager.prototype.add = function(alias, url) {
 		this.temp[alias] = url;
 	};
 	
-	ResourceLoader.prototype.end = function(done) {
+	ResourceManager.prototype.end = function(done) {
 		var self = this;
 		var newPairs = [];
 		
@@ -115,5 +115,5 @@ define([], function() {
 		}
 	};
 	
-	return ResourceLoader;
+	return ResourceManager;
 });
