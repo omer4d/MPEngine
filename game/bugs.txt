@@ -4,3 +4,6 @@ sector side function returns opposite side?
 
 standing under a sector edge and jumping into the ceiling will snap the player to the side of the edge
 head-on collision with the sector edge can produce a similar MTV so the situation is ambiguous without considering velocity
+
+
+e1m2, behind red door, sector with blue wall lights and low ceiling. jumping into the ceiling launches player out of the map

@@ -1,7 +1,7 @@
 require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
-	var WAD_NAME = "/data/e1m1.wad";
+	var WAD_NAME = "/data/e3m1.wad";
 
 	window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
 	window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
@@ -259,8 +259,8 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	var levelMesh;
 	var renderer;
 	
-	var player = new Player(1032, 0, -3200);
-	//var player = new Player(1900, 0, 900);
+	//var player = new Player(1032, 0, -3200);
+	var player = new Player(1900, 0, 900);
 	//var player = new Player(1700, 0, 1600);
 	var things = [];
 	
@@ -302,6 +302,7 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 					x: thingSpawn.x,
 					y: floorHeight,
 					z: thingSpawn.y,
+					light: sec.light,
 				});
 			}
 		}
@@ -344,10 +345,13 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 		
 		//renderer.pushSprite(atlas.get("bossg1"), 1032, 0, -3200);
 		
+		var nx = -Math.sin(player.angles.y);
+		var ny = Math.cos(player.angles.y);
+		
 		renderer.beginSprites();
 		for(var i = 0; i < things.length; ++i) {
 			
-			renderer.pushSprite(things[i].reg, things[i].x, things[i].y, things[i].z);
+			renderer.pushSprite2(things[i].reg, things[i].x, things[i].y, things[i].z, nx, ny, things[i].light);
 			
 		}
 		renderer.endSprites();
