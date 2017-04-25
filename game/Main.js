@@ -246,13 +246,15 @@ require(["Wad", "Matrix4", "Mesh", "TextureManager", "Level", "LevelMesh", "Inpu
 	oReq.open("GET", WAD_NAME, true);
 	oReq.responseType = "arraybuffer";
 
-	ResourceLoader.registerTextureLoader(gl);
+	//ResourceLoader.registerTextureLoader(gl);
 	//ResourceLoader.load(["data/sprites/sprites0.png"], function(res) {
 	//	console.log(res);
 	//});
 	
 	var level;
-	var textureManager = new TextureManager(gl);
+	//var textureManager = new TextureManager(gl);
+	var textureManager = new ResourceLoader();
+	textureManager.registerTextureLoader(gl);
 	var levelMesh;
 	var renderer;
 	

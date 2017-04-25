@@ -1,6 +1,4 @@
 define([], function() {
-	var ResourceLoader = {};
-
 	function ispow2(x) {
 		return (~x & (x - 1)) === (x - 1);
 	}
@@ -35,15 +33,22 @@ define([], function() {
 		return {handle: texture, width: image.width, height: image.height};
 	}
 	
-	ResourceLoader.registerTextureLoader = function(gl) {
-		var loader = function(url, loaderCallback) {
+	function ResourceLoader() {
+		this.extensions = {};
+		this.temp = {};
+		this.oldTemp = {};
+		this.ready = true;
+	}
+	
+	ResourceLoader.prototype.registerTextureLoader = function(gl) {
+		var loader = function(url, alias, loaderCallback) {
 			var image = new Image();
 			image.src = url;
 			image.addEventListener('load', function(e) {
-				loaderCallback(url, textureFromImage(gl, e.target));
+				loaderCallback(alias, textureFromImage(gl, e.target));
 			});
 			image.addEventListener('error', function(e) {
-				loaderCallback(url, null);
+				loaderCallback(alias, null);
 			});
 		};
 		
@@ -54,24 +59,59 @@ define([], function() {
 		this.extensions.gif = loader;
 	};
 	
-	ResourceLoader.extensions = {
+	ResourceLoader.prototype.get = function(alias) {
+		return this.ready ? this.temp[alias] : null;
 	};
 	
-	ResourceLoader.load = function(list, done) {
-		var count = 0;
-		var resDict = {};
+	ResourceLoader.prototype.begin = function() {
+		var self = this;
+		self.oldTemp = {};
 		
-		var resultHandler = function(url, data) {
-			if(data)
-				resDict[url] = data;
+		Object.keys(self.temp).forEach(function(alias) {
+			self.oldTemp[alias] = self.temp[alias];
+		});
+		
+		self.temp = {};
+		self.ready = false;
+	};
+	
+	ResourceLoader.prototype.add = function(alias, url) {
+		this.temp[alias] = url;
+	};
+	
+	ResourceLoader.prototype.end = function(done) {
+		var self = this;
+		var newPairs = [];
+		
+		Object.keys(self.oldTemp).forEach(function(alias) {
+			// Delete textures that weren't requested again:
+			if(self.oldTemp[alias] && !(alias in self.temp)) {
+				self.gl.deleteTexture(self.oldTemp[alias]);
+			}
+		});
+		
+		Object.keys(self.temp).forEach(function(alias) {
+			// Recycle already loaded textures:
+			if(alias in self.oldTemp)
+				self.temp[alias] = self.oldTemp[alias];
+			else
+				newPairs.push({alias: alias, url: self.temp[alias]});
+		});
+		
+		self.ready = true;
+		
+		var count = 0;
+		
+		var resultHandler = function(alias, data) {
+			self.temp[alias] = data;
 			
 			++count;
-			if(count === list.length)
-				done(resDict);
+			if(count === newPairs.length)
+				done();
 		};
 		
-		for(var i = 0; i < list.length; ++i) {
-			this.extensions.png(list[i], resultHandler);
+		for(var i = 0; i < newPairs.length; ++i) {
+			this.extensions.png(newPairs[i].url, newPairs[i].alias, resultHandler);
 		}
 	};
 	
