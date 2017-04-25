@@ -9,12 +9,20 @@ define([], function() {
 		
 		this.coordData = new Float32Array(vertexCap * 3);
 		this.coordBuff = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.coordBuff);
+		gl.bufferData(gl.ARRAY_BUFFER, this.coordData.length, gl.DYNAMIC_DRAW);
 		
 		this.colorData = new Uint8Array(vertexCap * 3);
 		this.colorBuff = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuff);
+		gl.bufferData(gl.ARRAY_BUFFER, this.colorData.length, gl.DYNAMIC_DRAW);
 		
 		this.texCoordData = new Float32Array(vertexCap * 2);
 		this.texCoordBuff = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordBuff);
+		gl.bufferData(gl.ARRAY_BUFFER, this.texCoordData.length, gl.DYNAMIC_DRAW);
+		
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	}
 	
 	DynamicMesh.prototype.begin = function() {
@@ -50,20 +58,20 @@ define([], function() {
 		var gl = this.gl;
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.coordBuff);
-		gl.bufferData(gl.ARRAY_BUFFER, this.coordData, gl.STATIC_DRAW);
+		gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.coordData.subarray(0, this.coordIdx)); 
 		gl.enableVertexAttribArray(locations.coords);
 		gl.vertexAttribPointer(locations.coords, 3, gl.FLOAT, false, 0, 0);
 		
 		if(locations.colors) {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuff);
-			gl.bufferData(gl.ARRAY_BUFFER, this.colorData, gl.STATIC_DRAW);
+			gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.colorData.subarray(0, this.colorIdx)); 
 			gl.enableVertexAttribArray(locations.colors);
 			gl.vertexAttribPointer(locations.colors, 3, gl.UNSIGNED_BYTE, true, 0, 0);
 		}
 		
 		if(locations.texCoords) {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordBuff);
-			gl.bufferData(gl.ARRAY_BUFFER, this.texCoordData, gl.STATIC_DRAW);
+			gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.texCoordData.subarray(0, this.texCoordIdx)); 
 			gl.enableVertexAttribArray(locations.texCoords);
 			gl.vertexAttribPointer(locations.texCoords, 2, gl.FLOAT, false, 0, 0);
 		}

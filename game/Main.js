@@ -1,4 +1,4 @@
-require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders) {
+require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
 	var WAD_NAME = "/data/e1m1.wad";
@@ -261,9 +261,15 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	
 	var player = new Player(1032, 0, -3200);
 	//var player = new Player(1900, 0, 900);
-	//var player = new Player(-400, 0, 300);
+	//var player = new Player(1700, 0, 1600);
+	var things = [];
 	
-	
+	function findThingByCode(code) {
+		for(var i = 0; i < thingTable.length; ++i)
+			if(thingTable[i].code === code)
+				return thingTable[i];
+		return null;
+	}
 	
 	resMan.begin();
 	resMan.add("debug_grid", "data/grid.png");
@@ -276,11 +282,38 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 		level = resMan.get("%current_level%");
 		levelMesh = new LevelMesh(gl, level, resMan);
 		renderer = new Renderer(gl, levelMesh);
+		var atlas = resMan.get("atlas");
+		
+		for(var i = 0; i < level.lumps.THINGS.length; ++i) {
+			var thingSpawn = level.lumps.THINGS[i];
+			var thing = findThingByCode(thingSpawn.code);
+			var spn = thing ? (thing.sprite + thing.idleSeq[0] + "0").toLowerCase() : "";
+			var reg = thing ? atlas.get(spn) : null;
+			
+			console.log(spn);
+			
+			if(reg) {
+				var sec = level.findSector(thingSpawn);
+				var floorHeight = sec.floorHeight;
+				var ceilHeight = sec.ceilHeight;
+				
+				things.push({
+					reg: reg,
+					x: thingSpawn.x,
+					y: floorHeight,
+					z: thingSpawn.y,
+				});
+			}
+		}
+		
+		
 		renderLoop();
 	});
 	
 	var lastRenderTime = performance.now();
 	Input.setMouseLockable(canvas);
+	
+	var firstTime = true;
 	
 	function renderLoop() {
 		Input.refresh();
@@ -303,16 +336,28 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 		cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.y);
 		cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
 		
+		var atlas = resMan.get("atlas");
+		var reg = atlas.get("bossg1");
+		
 		renderer.draw(projectionMatrix, cameraMatrix);
 		
+		
+		//renderer.pushSprite(atlas.get("bossg1"), 1032, 0, -3200);
+		
 		renderer.beginSprites();
-		var reg = resMan.get("atlas").get("spidi6");
-		renderer.pushSprite(reg, 1032, 0, -3200);
+		for(var i = 0; i < things.length; ++i) {
+			
+			renderer.pushSprite(things[i].reg, things[i].x, things[i].y, things[i].z);
+			
+		}
+		renderer.endSprites();
+		
+		firstTime = false;
 		
 		//for(var i = 0; i < 100; ++i) {
 			//renderer.pushSprite(reg.textureHandle, 1032, 0, -3200, reg.w, reg.h);
 		//}
-		renderer.endSprites();
+		
 		
 		++frameCount;
 		requestAnimFrame(renderLoop);

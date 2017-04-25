@@ -113,6 +113,13 @@ define([], function() {
 					[ushort, ["rightChildIdx", "leftChildIdx"]]
 				]
 			},
+			{
+				name: "THINGS",
+				fields: [
+					[short, ["x", "y"]],
+					[ushort, ["angle", "code", "flags"]],
+				]
+			}
 		];
 	})();
 

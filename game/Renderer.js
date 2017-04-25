@@ -114,7 +114,7 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 		var texcoordLocation = gl.getAttribLocation(program, "a_texcoord");
 		var textureLocation = gl.getUniformLocation(program, "u_texture");
 		
-		var sprites = new DynamicMesh(gl, 6*100);
+		var sprites = new DynamicMesh(gl, 6*10000);
 		var lastSpriteTex = 0;
 		
 		this.draw = function(projectionMatrix, cameraMatrix) {
@@ -137,8 +137,8 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 		};
 		
 		this.beginSprites = function() {
-			sprites.begin();
 			lastSpriteTex = null;
+			sprites.begin();
 		};
 		
 		
@@ -180,9 +180,9 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 		
 		this.pushSprite = function(reg, x, y, z) {
 			if(reg.textureHandle != lastSpriteTex) {
-				gl.bindTexture(gl.TEXTURE_2D, reg.textureHandle);
 				sprites.flush({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
 				sprites.begin();
+				gl.bindTexture(gl.TEXTURE_2D, reg.textureHandle);
 			}
 			
 			sprites.coord(x, y, z);
