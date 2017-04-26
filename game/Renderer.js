@@ -26,7 +26,12 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 		uniform sampler2D u_texture;
 
 		void main() {
-			gl_FragColor =  texture2D(u_texture, v_texcoord) * v_color;
+			vec4 t4 = texture2D(u_texture, v_texcoord);
+			
+			if(t4.a < 0.01)
+				discard;
+			
+			gl_FragColor =  t4 * v_color;
 		}
 		`;
 
@@ -51,6 +56,11 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 
 
 		void main() {
+			vec4 t4 = texture2D(u_texture, v_texcoord);
+			
+			if(t4.a < 0.01)
+				discard;
+			
 			float n = 5.0;
 			float f = 10000.0;
 			float zndc = gl_FragCoord.z * 2.0 - 1.0;
@@ -58,7 +68,7 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 			float minz = -n;
 			float maxz = -1000.0;
 			
-			vec4 t4 = texture2D(u_texture, v_texcoord);
+			
 			vec3 t = t4.xyz;
 			float dark = 1.0 - v_color.r;
 			float finalDarkness = 0.0;
