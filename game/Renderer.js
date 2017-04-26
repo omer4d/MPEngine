@@ -112,29 +112,67 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 			gl_FragColor = vec4(vec3(mixed *    finalDarkness * 1.3+0.1), t4.a);
 		}
 		`;
+		
+	var skyVertexShaderSource = `
+		attribute vec4 a_position;
+		attribute vec4 a_color;
+		attribute vec2 a_texcoord;
+
+		uniform mat4 u_matrix;
+
+		varying vec4 v_color;
+		varying vec2 v_texcoord;
+
+		void main() {
+		  gl_Position = u_matrix * a_position;
+		  gl_Position.z = 1.0;
+		  v_color = a_color;
+		  v_texcoord = a_texcoord;
+		}`;
+		
+	var skyFragmentShaderSource = `
+		precision mediump float;
+
+		varying vec4 v_color;
+		varying vec2 v_texcoord;
+
+		uniform sampler2D u_texture;
+
+		void main() {
+			vec4 t4 = texture2D(u_texture, v_texcoord);
+			
+			if(t4.a < 0.01)
+				discard;
+			
+			gl_FragColor =  t4 * v_color;
+		}
+		`;
+		
+	function getStandardLocations(gl, program) {
+		return {
+			coords: gl.getAttribLocation(program, "a_position"),
+			colors: gl.getAttribLocation(program, "a_color"),
+			texCoords: gl.getAttribLocation(program, "a_texcoord"),
+			matrix: gl.getUniformLocation(program, "u_matrix"),
+			texture: gl.getUniformLocation(program, "u_texture")
+		};
+	}
+	
+	function buildProgram(gl, vert, frag) {
+		vert = (typeof vert === "string") ? GLUtil.createShader(gl, gl.VERTEX_SHADER, vert) : vert;
+		frag = (typeof frag === "string") ? GLUtil.createShader(gl, gl.FRAGMENT_SHADER, frag) : frag;
+		return GLUtil.createProgram(gl, vert, frag);
+	}
+	
 	
 	function Renderer(gl, levelMesh) {
-		var vertexShader = GLUtil.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-		var fragmentShader = GLUtil.createShader(gl, gl.FRAGMENT_SHADER, DEBUG_SIMPLE_SHADERS ? simpleFragmentShaderSource : fragmentShaderSource);
-		var program = GLUtil.createProgram(gl, vertexShader, fragmentShader);
-
-		//var spriteFragmentShader = GLUtil.createShader(gl, gl.FRAGMENT_SHADER, simpleFragmentShaderSource);
-		//var spriteVertexShader = GLUtil.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-		var spriteProgram = program; //GLUtil.createProgram(gl, spriteVertexShader, spriteFragmentShader);
+		var program = buildProgram(gl, vertexShaderSource, DEBUG_SIMPLE_SHADERS ? simpleFragmentShaderSource : fragmentShaderSource);
+		var spriteProgram = program;
+		var skyProgram = buildProgram(gl, skyVertexShaderSource, skyFragmentShaderSource);
 		
-		
-		var positionLocation = gl.getAttribLocation(program, "a_position");
-		var colorLocation = gl.getAttribLocation(program, "a_color");
-		var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-		var texcoordLocation = gl.getAttribLocation(program, "a_texcoord");
-		var textureLocation = gl.getUniformLocation(program, "u_texture");
-		
-		var spritePositionLocation = gl.getAttribLocation(spriteProgram, "a_position");
-		var spriteColorLocation = gl.getAttribLocation(spriteProgram, "a_color");
-		var spriteMatrixLocation = gl.getUniformLocation(spriteProgram, "u_matrix");
-		var spriteTexcoordLocation = gl.getAttribLocation(spriteProgram, "a_texcoord");
-		var spriteTextureLocation = gl.getUniformLocation(spriteProgram, "u_texture");
-		
+		var levelShaderLocations = getStandardLocations(gl, program);
+		var spriteShaderLocations = getStandardLocations(gl, spriteProgram);
+		var skyShaderLocations = getStandardLocations(gl, skyProgram);
 		
 		var sprites = new DynamicMesh(gl, 6*10000);
 		var lastSpriteTex = 0;
@@ -147,19 +185,29 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 			gl.enable(gl.BLEND);
 			
-
-			gl.useProgram(program);
-			
 			var viewMatrix = m4.inverse(cameraMatrix);
 			var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
-			gl.uniformMatrix4fv(matrixLocation, false, viewProjectionMatrix);
-			gl.uniform1i(textureLocation, 0);
-			levelMesh.draw({coords: positionLocation, colors: colorLocation, texCoords: texcoordLocation});
+			gl.useProgram(program);
+			gl.uniformMatrix4fv(levelShaderLocations.matrix, false, viewProjectionMatrix);
+			gl.uniform1i(levelShaderLocations.texture, 0);
+			
+			for(var i = 0; i < levelMesh.submeshes.length; ++i) {
+				 if(levelMesh.submeshes[i].tex)
+					gl.bindTexture(gl.TEXTURE_2D, levelMesh.submeshes[i].tex);
+				else
+					gl.bindTexture(gl.TEXTURE_2D, levelMesh.missingTexHandle);
+				levelMesh.mesh.draw(levelShaderLocations, levelMesh.submeshes[i].start, levelMesh.submeshes[i].len);
+			 }
+			
+			//levelMesh.draw(levelShaderLocations, program, skyShaderLocations, skyProgram);
+			
+			
+			
 			
 			gl.useProgram(spriteProgram);
-			gl.uniformMatrix4fv(spriteMatrixLocation, false, viewProjectionMatrix);
-			gl.uniform1i(spriteTextureLocation, 0);
+			gl.uniformMatrix4fv(spriteShaderLocations.matrix, false, viewProjectionMatrix);
+			gl.uniform1i(spriteShaderLocations.texture, 0);
 		};
 		
 		this.beginSprites = function() {
@@ -169,7 +217,7 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 		
 		this.pushSprite = function(reg, x, y, z) {
 			if(reg.textureHandle != lastSpriteTex) {
-				sprites.flush({coords: spritePositionLocation, colors: spriteColorLocation, texCoords: spriteTexcoordLocation});
+				sprites.flush(spriteShaderLocations);
 				sprites.begin();
 				gl.bindTexture(gl.TEXTURE_2D, reg.textureHandle);
 			}
@@ -204,7 +252,7 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 		
 		this.pushSprite2 = function(reg, x, y, z, nx, nz, light) {
 			if(reg.textureHandle != lastSpriteTex) {
-				sprites.flush({coords: spritePositionLocation, colors: spriteColorLocation, texCoords: spriteTexcoordLocation});
+				sprites.flush(spriteShaderLocations);
 				sprites.begin();
 				gl.bindTexture(gl.TEXTURE_2D, reg.textureHandle);
 			}
@@ -242,7 +290,7 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 		
 		this.endSprites = function() {
 			gl.bindTexture(gl.TEXTURE_2D, lastSpriteTex);
-			sprites.flush({coords: spritePositionLocation, colors: spriteColorLocation, texCoords: spriteTexcoordLocation});
+			sprites.flush(spriteShaderLocations);
 			sprites.begin();
 		};
 	}

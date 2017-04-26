@@ -1,7 +1,7 @@
 require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
-	var WAD_NAME = "/data/zaza3.wad";
+	var WAD_NAME = "/data/e1m2.wad";
 
 	window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
 	window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
@@ -259,8 +259,8 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	var levelMesh;
 	var renderer;
 	
-	//var player = new Player(1032, 0, -3200);
-	var player = new Player(1900, 0, 900);
+	var player = new Player(1032, 0, -3200);
+	//var player = new Player(1900, 0, 900);
 	//var player = new Player(1700, 0, 1600);
 	var things = [];
 	

@@ -232,9 +232,9 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 
 				
 				if(sec1.ceilHeight > sec2.ceilHeight)
-					pushWall(sidedef1.hiTexName, uu, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight, sidedef1);
+					pushWall(sec2.ceilTexName === "F_SKY1" ? "F_SKY1" : sidedef1.hiTexName, uu, x1, y1, x2, y2, sec2.ceilHeight, sec1.ceilHeight, sidedef1);
 				else
-					pushWall(sidedef2.hiTexName, uu, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight, sidedef2);
+					pushWall(sec1.ceilTexName === "F_SKY1" ? "F_SKY1" : sidedef2.hiTexName, uu, x1, y1, x2, y2, sec1.ceilHeight, sec2.ceilHeight, sidedef2);
 			}
 		}
 		
@@ -246,16 +246,23 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 		var jointTexCoords = [];
 		
 		triTexList.forEach(function(key) {
+			if(key === "F_SKY1")
+				return;
+			
 			submeshes.push({tex: texMan.get(key) ? texMan.get(DEBUG_SHOW_GRID ? "debug_grid" : key).handle : null,
-							start: jointTris.length/3, len: tris[key].length/3});
+								start: jointTris.length/3, len: tris[key].length/3});
 			Array.prototype.push.apply(jointTris, tris[key]);
 		});
 		
 		triTexList.forEach(function(key) {
+			if(key === "F_SKY1")
+				return;
 			Array.prototype.push.apply(jointColors, colors[key]);
 		});
 		
 		triTexList.forEach(function(key) {
+			if(key === "F_SKY1")
+				return;
 			Array.prototype.push.apply(jointTexCoords, texcoords[key]);
 		});
 		
@@ -277,7 +284,7 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 		this.missingTexHandle = texMan.get("error_missing_texture").handle;
 	}
 	
-	LevelMesh.prototype.draw = function(locations) {
+	LevelMesh.prototype.draw = function() {
 		var gl = this.gl;
 		
 		for(var i = 0; i < this.submeshes.length; ++i) {
@@ -285,7 +292,7 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 				gl.bindTexture(gl.TEXTURE_2D, this.submeshes[i].tex);
 			else
 				gl.bindTexture(gl.TEXTURE_2D, this.missingTexHandle);
-			this.mesh.draw(locations, this.submeshes[i].start, this.submeshes[i].len);
+			this.mesh.draw(levelLocations, this.submeshes[i].start, this.submeshes[i].len);
 		 }
 	}
 	
