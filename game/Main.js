@@ -1,7 +1,7 @@
 require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
-	var WAD_NAME = "/data/e1m2.wad";
+	var WAD_NAME = "/data/e1m1.wad";
 
 	window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
 	window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
@@ -277,12 +277,15 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	resMan.add("%ss%", "data/sprites/sprites0.png");
 	resMan.add("%current_level%", WAD_NAME);
 	resMan.end(function() {
+		console.log(resMan);
 		//console.log(resMan.get("atlas"));
 		//console.log();
 		level = resMan.get("%current_level%");
 		levelMesh = new LevelMesh(gl, level, resMan);
 		renderer = new Renderer(gl, levelMesh);
 		var atlas = resMan.get("atlas");
+		
+		console.log(resMan.dict);
 		
 		for(var i = 0; i < level.lumps.THINGS.length; ++i) {
 			var thingSpawn = level.lumps.THINGS[i];

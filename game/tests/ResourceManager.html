@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+  <script>
+  // includes min, excludes max
+function randi(min, max) {
+  return Math.floor(min + Math.random() * (max - min));
+}
+
+function genSimpleResources(n) {
+  var res = [];
+  
+  for(var i = 0; i < n; ++i) {
+    res.push({
+      url: "data/res" + i + ".leaf",
+      data: i,
+      type: "leaf"
+    });
+  }
+  
+  return res;
+}
+
+function genNodeData(pool, n) {
+  n = n || randi(1, 6);
+  var deps = [];
+  while(n) {
+    var idx = randi(0, pool.length);
+    if(deps.indexOf(pool[idx].url) < 0) {
+      deps.push(pool[idx].url);
+      --n;
+    }
+  }
+  return deps;
+}
+
+function genCompositeResources(res0, n) {
+  var res = [];
+  for(var i = 0; i < n; ++i)
+    res.push({
+      url: "data/res" + (res0.length + i) + ".node",
+      data: genNodeData(res0),
+      type: "node"
+    });
+  return res;
+}
+
+function genResourcePool(nesting) {
+  var resourcePool = genSimpleResources(5);
+  
+  for(var i = 0; i < nesting; ++i) {
+    var tmp = genCompositeResources(resourcePool, 5);
+    resourcePool = resourcePool.concat(tmp);
+  }
+  
+  return resourcePool;
+}
+
+function genTopLevelResourceList(pool) {
+  var n = randi(Math.floor(pool.length / 4), Math.floor(pool.length / 2));
+  return genNodeData(pool, n);
+}
+
+function union(a, b) {
+  var u = {};
+  for(var i = 0; i < a.length; ++i)
+    u[a[i]] = true;
+  for(i = 0; i < b.length; ++i)
+    u[b[i]] = true;
+  return Object.keys(u);
+}
+
+function findByUrl(resPool, url) {
+  for(var j = 0; j < resPool.length; ++j)
+    if(resPool[j].url === url)
+      break;
+  
+  return j < resPool.length ? resPool[j] : null;
+}
+
+function fullResourceList(resList, resPool) {
+  var accum = resList;
+  
+  for(var i = 0; i < resList.length; ++i) {
+    var res = findByUrl(resPool, resList[i]);
+    if(!res)
+      throw "Can't find" + resList[i];
+    
+    if(res.type === "node") {
+      var tmp = fullResourceList(res.data, resPool);
+      accum = union(accum, tmp);
+    }
+  }
+  
+  return accum;
+}
+
+function diff(older, newer) {
+  var removed = [], added = [], retained = [];
+  
+  for(var i = 0; i < older.length; ++i)
+    if(newer.indexOf(older[i]) < 0)
+      removed.push(older[i]);
+      
+  for(i = 0; i < newer.length; ++i)
+    if(older.indexOf(newer[i]) < 0)
+      added.push(newer[i]);
+    else
+      retained.push(newer[i]);
+      
+  return {removed: removed, added: added, retained: retained};
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var STATE_DONE_LOADING = 0;
+var STATE_REGISTERING_RESOURCES = 1;
+var STATE_LOADING = 2;
+
+function ResourceEntry(url, data, cleanupFunc) {
+  this.url = url;
+	this.data = data;
+	this.cleanupFunc = cleanupFunc;
+	this.deps = []; // Dependency ResourceEntries
+}
+
+ResourceEntry.prototype.get = function() {
+	return this.data;
+};
+
+function ResourceManager() {
+	this.extensions = {};
+	this.queue = [];
+	this.liveList = []; // urls (string)
+	this.cache = {}; // url (string) -> ResourceEntry
+	this.dict = {}; // key (string) -> ResourceEntry
+	this.remaining = 0;
+	this.userDoneCallback = null;
+	this.state = STATE_DONE_LOADING;
+	this.nextAutoId = 0;
+}
+
+ResourceManager.prototype.die = function() {
+	var currState;
+	
+	switch(this.state) {
+		case STATE_DONE_LOADING:
+			currState = "STATE_DONE_LOADING";
+			break;
+		case STATE_REGISTERING_RESOURCES:
+			currState = "STATE_REGISTERING_RESOURCES";
+			break;
+		case STATE_LOADING:
+			currState = "STATE_LOADING";
+			break;
+		default:
+			currState = "INVALID STATE";
+	}
+	
+	throw new Error("ResourceManager: invalid operation! Current state: " + currState);
+};
+
+ResourceManager.prototype.registerLoader = function(ext, loader) {
+	this.extensions[ext] = loader;
+};
+
+ResourceManager.prototype.get = function(key) {
+	if(this.state !== STATE_DONE_LOADING)
+		this.die();
+	
+	var entry = this.dict[key];
+	return entry ? entry.data : null;
+};
+
+ResourceManager.prototype.begin = function() {
+	if(this.state !== STATE_DONE_LOADING)
+		this.die();
+	
+	this.queue = [];
+	this.liveList = [];
+	this.userDoneCallback = null;
+	this.dict = {};
+	
+	this.state = STATE_REGISTERING_RESOURCES;
+};
+
+ResourceManager.prototype.markDepTree = function(entry) {
+	for(var i = 0; i < entry.deps.length; ++i) {
+		this.liveList.push(entry.deps[i].url);
+		this.markDepTree(entry.deps[i]);
+	}
+};
+
+ResourceManager.prototype.add = function(key, url) {
+  if(this.state !== STATE_REGISTERING_RESOURCES)
+		this.die();
+  
+	key = key || ("__anonymous" + (this.nextAutoId++));
+	url = url || key;
+	
+	var entry = this.dict[key] || this.cache[url] || new ResourceEntry(url, null, null);
+	
+	if(entry.url !== url)
+	  throw new Error("ResourceManager: conflicting URLs for '" + key + "': " + entry.url + " (old) vs. " + url + " (new)");
+
+	this.dict[key] = entry;
+	this.liveList.push(url);
+
+	if(!this.cache[url]) {
+	  this.cache[url] = entry;
+	  this.queue.push(url);
+	}else {
+		this.markDepTree(entry);
+	}
+	return entry;
+};
+
+// To be called only by loaders!
+ResourceManager.prototype.addDep = function(parentUrl, url) {
+	if(this.state !== STATE_LOADING)
+		this.die();
+	
+	var entry = this.cache[url];
+	this.liveList.push(url);
+  
+	if(!entry) {
+	   entry = new ResourceEntry(url, null, null);
+	  this.cache[url] = entry;
+	  var ext = url.slice(url.lastIndexOf(".") + 1).toLowerCase();
+		if(ext in this.extensions) {
+			this.extensions[ext](this, url);
+			++this.remaining;
+		}
+		else
+			throw new Error("ResourceManager: Unregistered extension '." + ext + "'");
+	}else {
+		this.markDepTree(entry);
+	}
+	
+	this.cache[parentUrl].deps.push(entry);
+	return entry;
+};
+
+ResourceManager.prototype.gc = function() {
+	var killList = {};
+	var urls = Object.keys(this.cache);
+	var i;
+	
+	for(i = 0; i < urls.length; ++i)
+		killList[urls[i]] = true;
+	
+	for(i = 0; i < this.liveList.length; ++i)
+		delete killList[this.liveList[i]];
+	
+	urls = Object.keys(killList);
+	for(i = 0; i < urls.length; ++i) {
+		var entry = this.cache[urls[i]];
+		
+		entry.data = null;
+		if(entry.cleanupFunc)
+			entry.cleanupFunc(entry.data);
+		
+		delete this.cache[urls[i]];
+	}
+}
+
+ResourceManager.prototype.onDone = function(url, data, cleanupFunc) {
+	this.cache[url].data = data;
+	this.cache[url].cleanupFunc = cleanupFunc;
+	
+	if(data === null || data === undefined)
+		console.log("Failed to load '" + url + "'");
+	
+	--this.remaining;
+	if(this.remaining === 0) {
+		this.gc();
+		this.state = STATE_DONE_LOADING;
+		this.userDoneCallback();
+	}
+};
+
+ResourceManager.prototype.end = function(done) {
+	if(this.state !== STATE_REGISTERING_RESOURCES)
+		this.die();
+	
+	this.userDoneCallback = done;
+	this.state = STATE_LOADING;
+	
+	if(this.queue.length === 0) {
+		this.gc();
+		this.state = STATE_DONE_LOADING;
+		
+		setTimeout(function() {
+			done();
+		}, 0); // Allows nested loads by returning immediately and postponing the callback.
+	}
+	
+	for(var i = 0; i < this.queue.length; ++i) {
+		var url = this.queue[i];
+		var ext = url.slice(url.lastIndexOf(".") + 1).toLowerCase();
+		if(ext in this.extensions) {
+			this.extensions[ext](this, url);
+			++this.remaining;
+		}
+		else
+			throw new Error("ResourceManager: Unregistered extension '." + ext + "'");
+	}
+};
+
+ResourceManager.prototype.getResourceList = function() {
+	var list = [];
+	var keys = Object.keys(this.dict);
+	for(var i = 0; i < keys.length; ++i)
+		list.push(this.dict[keys[i]]);
+	return list;
+};
+
+
+
+
+
+
+
+var resPool = genResourcePool(0);
+var rm = new ResourceManager();
+
+var loaded = [];
+var deleted = [];
+
+rm.registerLoader("leaf", function(rm, url) {
+	setTimeout(function() {
+	  var res = findByUrl(resPool, url);
+	  loaded.push(url);
+		rm.onDone(url, res ? res.data : null, function() {
+			deleted.push(url);
+		});
+	}, 5);//Math.floor(200 + Math.random() * 200));
+});
+
+rm.registerLoader("node", function(rm, url) {
+	setTimeout(function() {
+	  var res = findByUrl(resPool, url);
+	  if(res) {
+	    for(var i = 0; i < res.data.length; ++i)
+	      rm.addDep(url, res.data[i]);
+	  }
+	  loaded.push(url);
+		rm.onDone(url, res ? res.data : null, function() {
+			deleted.push(url);
+		});
+	}, 5);// Math.floor(200 + Math.random() * 200));
+});
+
+function equiv(a, b) {
+	if(a.length !== b.length)
+		return false;
+	for(var i = 0; i < a.length; ++i)
+		if(b.indexOf(a[i]) < 0)
+			return false;
+	for(i = 0; i < b.length; ++i)
+		if(a.indexOf(b[i]) < 0)
+			return false;
+	return true;
+}
+
+function testLoad(prevResList, resList, done) {
+  var keys = [];
+  
+  rm.begin();
+  
+  for(var i = 0; i < resList.length; ++i) {
+    var key = "key" + i;
+    keys.push(key);
+    rm.add(key, resList[i]);
+	
+	//console.log("KD", resList[i], key, findByUrl(resPool, resList[i]).data);
+	
+  }
+  //console.log("\n");
+  loaded = [];
+  deleted = [];
+  
+  rm.end(function() {
+	var cached = Object.keys(rm.cache);
+	var fullResList = fullResourceList(resList, resPool);
+	var prevFullResList = fullResourceList(prevResList, resPool);
+	var d = diff(prevFullResList, fullResList);
+	
+	console.log("Diff:", d);
+	console.log("ResList", resList);
+	console.log("FullResList", fullResList);
+	console.log("FullPrevResList", prevFullResList);
+	
+	//console.log(rm.cache, rm.dict);
+  
+	if(!equiv(cached, fullResList)) {
+		console.log("Cached: ", cached);
+		console.log("------");
+		console.log("FullResList: ", fullResList);
+		throw "cache differs!";
+	}
+	
+	if(!equiv(loaded, d.added)) {
+		console.log("Diff.added: ", d.added);
+		console.log("------");
+		console.log("Loaded: ", loaded);
+		throw "loaded differs!";
+	}
+	
+	if(!equiv(deleted, d.removed)) {
+		console.log("Diff.removed: ", d.removed);
+		console.log("------");
+		console.log("Deleted: ", deleted);
+		throw "Deleted differs!";
+	}
+	
+	for(var i = 0; i < keys.length; ++i) {
+		var key = keys[i];
+	
+      if(rm.get(key) !== findByUrl(resPool, resList[i]).data) {
+		console.log("rm", rm.get(key));
+		console.log("orig", resList[i], findByUrl(resPool, resList[i]).data);
+	  
+        throw key + " has got wrong data";
+	  }
+	}
+    
+    console.log("--------------- FINISHED SUBTEST ----------------");
+	
+	done();
+  });
+}
+
+
+var prevResList = [];
+var resList = genTopLevelResourceList(resPool);
+var tests = 10000;
+
+var refresh = function() {
+	console.log("Subtest #" + tests);
+
+	if(tests > 0) {
+		prevResList = resList;
+		resList = genTopLevelResourceList(resPool);
+		
+		console.log(resList);
+		
+		testLoad(prevResList, resList, refresh);
+		--tests;
+	}else {
+		console.log("DONE!");
+	}
+};
+
+testLoad([], resList, refresh);
+
+
+/*
+console.log(rm);
+
+rm.begin();
+rm.add("res0", "data/res0.leaf");
+rm.add("res0", "data/res0.leaf");
+rm.add("res0", "data/res0.leaf");
+rm.add("res0", "data/res0.leaf");
+rm.add("res0", "data/res0.leaf");
+rm.add("res1", "data/res1.leaf");
+rm.add("res2", "data/res2.leaf");
+rm.add("res6", "data/res6.node");
+
+rm.end(function() {
+  console.log(rm.get("res0"));
+  console.log(rm.get("res1"));
+  console.log(rm.get("res2"));
+  console.log(rm.get("res6"));
+  console.log("Total:", loaded);
+});*/
+
+
+
+
+
+
+
+//var resPool = genResourcePool(4);
+//var resList1 = genTopLevelResourceList(resPool);
+//var resList2 = genTopLevelResourceList(resPool);
+
+//console.log(diff(fullResourceList(resList1, resPool), fullResourceList(resList2, resPool)));
+
+
+//console.log("full", fullResourceList(resList, resPool));
+//console.log();
+//console.log("toplevel", resList);
+
+
+//console.log(diff(genTopLevelResourceList(resPool), genTopLevelResourceList(resPool)));
+//console.log();
+//console.log(JSON.stringify(resPool, null, 3));
+  </script>
+</body>
+</html>

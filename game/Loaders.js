@@ -34,14 +34,18 @@ define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 	}
 	
 	function registerTextureLoader(rm, gl) {
-		var loader = function(rm, url, alias) {
+		var cleanup = function(handle) {
+			gl.deleteTexture(handle);
+		};
+		
+		var loader = function(rm, url) {
 			var image = new Image();
 			image.src = url;
 			image.addEventListener('load', function(e) {
-				rm.onDone(alias, textureFromImage(gl, e.target));
+				rm.onDone(url, textureFromImage(gl, e.target), cleanup);
 			});
 			image.addEventListener('error', function(e) {
-				rm.onDone(alias, null);
+				rm.onDone(url, null);
 			});
 		};
 		
@@ -53,7 +57,7 @@ define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 	};
 	
 	function registerLevelLoader(rm) {
-		rm.registerLoader("wad", function(rm, url, alias) {
+		rm.registerLoader("wad", function(rm, url) {
 			var request = new XMLHttpRequest();
 			request.open('GET', url, true);
 			request.responseType = "arraybuffer";
@@ -64,13 +68,13 @@ define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 				var texList = level.genTextureNameList();
 				
 				for(var i = 0; i < texList.length; ++i)
-					rm.load(texList[i], "data/textures/" + texList[i] + ".png");
+					rm.addDep(url, texList[i], "data/textures/" + texList[i] + ".png");
 				
-				rm.onDone(alias, request.status >= 200 && request.status < 400 ? level : null);
+				rm.onDone(url, request.status >= 200 && request.status < 400 ? level : null);
 			};
 
 			request.onerror = function() {
-				rm.onDone(alias, null);
+				rm.onDone(url, null);
 			};
 
 			request.send();
@@ -78,7 +82,7 @@ define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 	}
 	
 	function registerAtlasLoader(rm) {
-		rm.registerLoader("atlas", function(rm, url, alias) {
+		rm.registerLoader("atlas", function(rm, url) {
 			var request = new XMLHttpRequest();
 			request.open('GET', url, true);
 			request.responseType = "json";
@@ -88,15 +92,17 @@ define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 				var atlas = {};
 				var lastSlash = url.lastIndexOf("/");
 				var base = url.slice(0, lastSlash < 0 ? 0 : (lastSlash + 1));
+				var sheetTexHandles = [];
 				
-				for(var i = 0; i < sheets.length; ++i)
-					rm.load(sheets[i].meta.image, base + sheets[i].meta.image);
+				for(var i = 0; i < sheets.length; ++i) {
+					sheetTexHandles.push(rm.addDep(url, null, base + sheets[i].meta.image));
+				}
 				
-				rm.onDone(alias, request.status >= 200 && request.status < 400 ? new SpriteAtlas(rm, sheets) : null);
+				rm.onDone(url, request.status >= 200 && request.status < 400 ? new SpriteAtlas(rm, sheets, sheetTexHandles) : null);
 			};
 
 			request.onerror = function() {
-				rm.onDone(alias, null);
+				rm.onDone(url, null);
 			};
 
 			request.send();

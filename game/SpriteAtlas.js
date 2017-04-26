@@ -9,9 +9,10 @@ define([], function() {
 		this.v1 = v1;
 	}
 	
-	function SpriteAtlas(resMan, sheets) {
+	function SpriteAtlas(resMan, sheets, sheetTexHandles) {
 		this.resMan = resMan;
 		this.sheets = sheets;
+		this.sheetTexHandles = sheetTexHandles;
 		this.cache = null;
 	}
 	
@@ -21,7 +22,7 @@ define([], function() {
 		for(var i = 0; i < this.sheets.length; ++i) {
 			var sheet = this.sheets[i];
 			var keys = Object.keys(sheet.frames);
-			var texHandle = this.resMan.get(sheet.meta.image).handle;
+			var texHandle = this.sheetTexHandles[i].get().handle;
 			
 			for(var j = 0; j < keys.length; ++j) {
 				var key = keys[j];
