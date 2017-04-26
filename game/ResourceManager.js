@@ -4,17 +4,17 @@ define([], function() {
 	var STATE_LOADING = 2;
 
 	function makeGenericLoader(responseType) {
-		return function(rm, url, alias) {
+		return function(rm, url) {
 			var request = new XMLHttpRequest();
 			request.open('GET', url, true);
 			request.responseType = responseType;
 			
 			request.onload = function() {
-				rm.onDone(alias, request.status >= 200 && request.status < 400 ? request.response : null);
+				rm.onDone(url, request.status >= 200 && request.status < 400 ? request.response : null);
 			};
 
 			request.onerror = function() {
-				rm.onDone(alias, null);
+				rm.onDone(url, null);
 			};
 
 			request.send();
@@ -45,13 +45,11 @@ define([], function() {
 		
 		this.registerDefaultLoaders();
 	}
-
+	
 	ResourceManager.prototype.registerDefaultLoaders = function() {
 		var textLoader = makeGenericLoader("text");
 		this.extensions.json = makeGenericLoader("json");
 		this.extensions.txt = textLoader;
-		this.extensions.frag = textLoader;
-		this.extensions.vert = textLoader;
 	};
 
 	ResourceManager.prototype.die = function() {

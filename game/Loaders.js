@@ -1,4 +1,4 @@
-define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
+define(["Level", "Wad", "SpriteAtlas", "GLUtil"], function(Level, Wad, SpriteAtlas, GLUtil) {
 	function ispow2(x) {
 		return (~x & (x - 1)) === (x - 1);
 	}
@@ -33,6 +33,24 @@ define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 		return {handle: texture, width: image.width, height: image.height};
 	}
 	
+	function makeGenericLoader(responseType, processor) {
+		return function(rm, url) {
+			var request = new XMLHttpRequest();
+			request.open('GET', url, true);
+			request.responseType = responseType;
+			
+			request.onload = function() {
+				rm.onDone(url, request.status >= 200 && request.status < 400 ? processor(request.response) : null);
+			};
+
+			request.onerror = function() {
+				rm.onDone(url, null);
+			};
+
+			request.send();
+		};
+	}
+	
 	function registerTextureLoader(rm, gl) {
 		var cleanup = function(handle) {
 			gl.deleteTexture(handle);
@@ -55,6 +73,37 @@ define(["Level", "Wad", "SpriteAtlas"], function(Level, Wad, SpriteAtlas) {
 		rm.registerLoader("jpeg", loader);
 		rm.registerLoader("gif", loader);
 	};
+	
+	/*
+	function registerShaderLoaders(rm, gl) {
+		rm.registerLoader("frag", makeGenericLoader(function(src) {
+			return GLUtil.createShader(gl, gl.FRAGMENT_SHADER, src);
+		});
+		
+		rm.registerLoader("vert", makeGenericLoader(function(src) {
+			return GLUtil.createShader(gl, gl.VERTEX_SHADER, src);
+		});
+	}*/
+	
+	function registerMaterialLoader(rm, gl) {
+		/*
+		rm.registerLoader("mat", function(rm, url) {
+			setTimeout(function() {
+				var texRes = rm.addDep(url, null, "data/textures/" + url + ".png");
+				var fragRes = rm.addDep(url, "shaders/illuminated.frag", "data/shaders/illuminated.frag");
+				var vertRes = rm.addDep(url, "shaders/simple.vert", "data/shaders/simple.vert");
+				rm.onDone(url, {
+					texRes: texRes,
+					fragRes: fragRes,
+					vertRes: vertRes,
+					program: null,
+					use: function(gl) {
+						
+					}
+				});
+			}, 0);
+		});*/
+	}
 	
 	function registerLevelLoader(rm) {
 		rm.registerLoader("wad", function(rm, url) {
