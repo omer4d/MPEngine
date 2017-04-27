@@ -53,6 +53,10 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 			p.bufferedJumps = 1;
 		}
 		
+		if(!(Input.keyPressed("Spacebar") || Input.keyPressed(" "))) {
+			p.bufferedJumps = 0;
+		}
+		
 		if(Input.mouseLocked()) {
 			p.angles.y += Input.mouseDeltaX() * msens;
 			p.angles.x = Math.max(Math.min(p.angles.x + Input.mouseDeltaY() * msens, Math.PI / 2), -Math.PI / 2);
