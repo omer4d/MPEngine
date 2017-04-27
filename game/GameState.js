@@ -53,7 +53,7 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 				if(thingTable[thingSpawn.code] && thingTable[thingSpawn.code].type === "player_coop_spawn") {
 					x = thingSpawn.x;
 					z = thingSpawn.y;
-					ang = (thingSpawn.angle / (1 << 16)) * Math.PI;
+					ang = (thingSpawn.angle / 180) * Math.PI;
 					break;
 				}
 			}
