@@ -1,7 +1,7 @@
 require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable", "GameState"], function(g, Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable, GameState) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
-	var WAD_NAME = "/data/e1m2.wad";
+	var WAD_NAME = "/data/e3m1.wad";
 
 	window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
 	window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
@@ -159,7 +159,7 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		//console.log();
 		level = resMan.get("%current_level%");
 		gameState = new GameState(level);
-		player = gameState.spawnPlayer(1032, -3200);
+		player = gameState.spawnPlayer();
 		
 		levelMesh = new LevelMesh(gl, level, resMan);
 		renderer = new Renderer(gl, levelMesh);
@@ -170,23 +170,26 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		for(var i = 0; i < level.lumps.THINGS.length; ++i) {
 			var thingSpawn = level.lumps.THINGS[i];
 			var thing = findThingByCode(thingSpawn.code);
-			var spn = thing ? (thing.sprite + thing.idleSeq[0] + "0").toLowerCase() : "";
-			var reg = thing ? atlas.get(spn) : null;
 			
-			console.log(spn);
-			
-			if(reg) {
-				var sec = level.findSector(thingSpawn);
-				var floorHeight = sec.floorHeight;
-				var ceilHeight = sec.ceilHeight;
+			if(thing && thing.sprite) {
+				var spn = (thing.sprite + thing.idleSeq[0] + "0").toLowerCase();
+				var reg = thing ? atlas.get(spn) : null;
 				
-				things.push({
-					reg: reg,
-					x: thingSpawn.x,
-					y: floorHeight,
-					z: thingSpawn.y,
-					light: sec.light,
-				});
+				console.log(spn);
+				
+				if(reg) {
+					var sec = level.findSector(thingSpawn);
+					var floorHeight = sec.floorHeight;
+					var ceilHeight = sec.ceilHeight;
+					
+					things.push({
+						reg: reg,
+						x: thingSpawn.x,
+						y: floorHeight,
+						z: thingSpawn.y,
+						light: sec.light,
+					});
+				}
 			}
 		}
 		

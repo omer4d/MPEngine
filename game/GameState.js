@@ -44,8 +44,31 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 	};
 	
 	GameState.prototype.spawnPlayer = function(x, z) {
+		var ang = 0;
+		
+		if(x === undefined && z === undefined) {
+			// Try to find player spawn thing:
+			for(var i = 0; i < this.level.thingCount(); ++i) {
+				var thingSpawn = this.level.getThing(i);
+				if(thingTable[thingSpawn.code] && thingTable[thingSpawn.code].type === "player_coop_spawn") {
+					x = thingSpawn.x;
+					z = thingSpawn.y;
+					ang = (thingSpawn.angle / (1 << 16)) * Math.PI;
+					break;
+				}
+			}
+			
+			// Couldn't find one? Get one programmatically:
+			if(i === this.level.thingCount()) {
+				var sp = this.level.getDefaultSpawnPos();
+				x = sp.x;
+				z = sp.z;
+			}
+		}
+		
 		var sec = this.level.findSector({x: x, y: z});
 		var player = new Player(x, sec.height, z);
+		player.angles.y = ang;
 		
 		this.addEntity(player);
 		

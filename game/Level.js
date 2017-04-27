@@ -3,6 +3,38 @@ define([], function() {
 		this.lumps = lumps;
 	}
 	
+	Level.prototype.thingCount = function() {
+		return this.lumps.THINGS.length;
+	};
+	
+	Level.prototype.getThing = function(i) {
+		return this.lumps.THINGS[i];
+	};
+	
+	Level.prototype.getDefaultSpawnPos = function() {
+		var LEAF_FLAG = 1 << 15;
+		var aabb = [0, 0, 0, 0];
+		
+		for(var i = 0; i < this.lumps.GL_NODES.length; ++i) {
+			var node = this.lumps.GL_NODES[i];
+			
+			if(node.leftChildIdx & LEAF_FLAG) {
+				aabb = node.leftAABB;
+				break;
+			}
+			
+			else if(node.rightChildIdx & LEAF_FLAG) {
+				aabb = node.rightAABB;
+				break;
+			}
+		}
+		
+		return {
+			x: (aabb[2] + aabb[3]) / 2,
+			z: (aabb[0] + aabb[1]) / 2,
+		};
+	};
+	
 	Level.prototype.genTextureNameList = function() {
 		var lumps = this.lumps;
 		var textures = {"error_missing_texture": true, "error_bad_format": true};

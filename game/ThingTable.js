@@ -1,4 +1,24 @@
 define([], {
+	"1": {
+		"code": 1,
+		"type": "player_coop_spawn",
+	},
+	"2": {
+		"code": 2,
+		"type": "player_coop_spawn",
+	},
+	"3": {
+		"code": 3,
+		"type": "player_coop_spawn",
+	},
+	"4": {
+		"code": 4,
+		"type": "player_coop_spawn",
+	},
+	"11": {
+		"code": 11,
+		"type": "player_dm_spawn",
+	},
    "10": {
       "code": 10,
       "rad": 16,
