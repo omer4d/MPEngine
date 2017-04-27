@@ -78,14 +78,38 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 	GameState.prototype.logic = function(dt) {
 		var i;
 		
+		for(i = 0; i < this.dynamic.length; ++i) {
+			var ent = this.dynamic[i];
+			ent.oldPos.copy(ent.pos);
+		}
+		
 		for(i = 0; i < this.players.length; ++i)
 			accelPlayer(this.players[i], dt);
 		
 		for(i = 0; i < this.dynamic.length; ++i) {
 			var ent = this.dynamic[i];
+			
 			ent.pos.x += ent.vel.x * dt;
 			ent.pos.y += ent.vel.y * dt;
 			ent.pos.z += ent.vel.z * dt;
+			
+			var oldInactiveFrames = ent.inactiveFrames;
+			var dx = ent.pos.x - ent.oldPos.x;
+			var dz = ent.pos.z - ent.oldPos.z;
+			
+			if(dx*dx + dz*dz < 0.1)
+				++ent.inactiveFrames;
+			else
+				ent.inactiveFrames = 0;
+			
+			if(oldInactiveFrames >= 10 && !ent.inactiveFrames) {
+				
+				//console.log("Started moving!");
+			}
+			
+			if(ent.inactiveFrames === 10) {
+				//console.log("Stopped moving!");
+			}
 		}
 		
 		for(i = 0; i < this.players.length; ++i)
@@ -98,10 +122,13 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 	
 	
 	
+	//function entMotionStarted(ent) {
+	//	return ent.vel.xzLenSquare() > 1 && ent.oldVel.xzLenSquare() < 1;
+	//}
 	
-	
-	
-	
+	//function entMotionEnded(ent) {
+	//	return ent.vel.xzLenSquare() < 1 && ent.oldVel.xzLenSquare() > 1;
+	//}
 	
 	function entIsStatic(ent) {
 		return !(ent.flags & g.F_DYNAMIC) || (ent.vel.x === 0 && ent.vel.z === 0);

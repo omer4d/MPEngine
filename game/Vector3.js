@@ -31,13 +31,17 @@ define([], function() {
 		this.y = other.y;
 		this.z = other.z;
 		return this;
-	}
+	};
 	
 	Vector3.prototype.set = function(x, y, z) {
 		this.x = x;
 		this.y = y;
 		this.z = z;
-	}
+	};
+	
+	Vector3.prototype.xzLenSquare = function() {
+		return this.x*this.x + this.z*this.z;
+	};
 	
 	return Vector3;
 });
