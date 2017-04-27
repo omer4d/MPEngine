@@ -108,7 +108,7 @@ define([], function() {
 		var LEAF_FLAG = 1 << 15;
 		
 		if(idx & LEAF_FLAG) {
-			return [lumps.GL_SSECT[idx & ~LEAF_FLAG]];
+			return [idx & ~LEAF_FLAG];
 		}else {
 			var node = lumps.GL_NODES[idx];
 			var nx = -node.dy;
@@ -250,8 +250,10 @@ define([], function() {
 			var count = 0;
 			
 			for(i = 0; i < subs.length; ++i) {
-				for(var j = 0; j < subs[i].segNum; ++j) {
-					var tseg = lumps.GL_SEGS[subs[i].firstSegIdx + j];
+				var sub = lumps.GL_SSECT[subs[i]];
+				
+				for(var j = 0; j < sub.segNum; ++j) {
+					var tseg = lumps.GL_SEGS[sub.firstSegIdx + j];
 					if(tseg.linedefIdx !==  0xFFFF) {
 						var out = {};
 						var linedef = lumps.LINEDEFS[tseg.linedefIdx];
@@ -296,8 +298,10 @@ define([], function() {
 		//console.log(subs);
 		
 		for(i = 0; i < subs.length; ++i) {
-			for(var j = 0; j < subs[i].segNum; ++j) {
-				var tseg = lumps.GL_SEGS[subs[i].firstSegIdx + j];
+			var sub = lumps.GL_SSECT[subs[i]];
+			
+			for(var j = 0; j < sub.segNum; ++j) {
+				var tseg = lumps.GL_SEGS[sub.firstSegIdx + j];
 				if(tseg.linedefIdx !==  0xFFFF) {
 					var out = {};
 					var linedef = lumps.LINEDEFS[tseg.linedefIdx];

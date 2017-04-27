@@ -26,5 +26,18 @@ define([], function() {
 		return new Vector3(this.x, this.y, this.z);
 	};
 	
+	Vector3.prototype.copy = function(other) {
+		this.x = other.x;
+		this.y = other.y;
+		this.z = other.z;
+		return this;
+	}
+	
+	Vector3.prototype.set = function(x, y, z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+	
 	return Vector3;
 });

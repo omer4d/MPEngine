@@ -1,39 +1,20 @@
-require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable"], function(Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable) {
+require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable", "GameState"], function(g, Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable, GameState) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
-	var WAD_NAME = "/data/e1m3.wad";
+	var WAD_NAME = "/data/e1m1.wad";
 
 	window.requestAnimFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
 	window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
 		window.setTimeout(callback, 1000 / 60);
 	};
 	
-	function Player(x, y, z) {
-		this.pos = new Vector3(x, y, z);
-		this.vel = new Vector3();
-		this.angles = new Vector3();
-		this.moveDir = new Vector3();
-		this.bufferedJumps = 0;
-	}
-	
-	Player.prototype.xzSpeed = function() {
-		return Math.sqrt(this.vel.x * this.vel.x + this.vel.z * this.vel.z);
-	};
-	
-	function clamp(x, min, max) {
-		return x < min ? min : (x > max ? max : x);
-	}
-	
-	function angle(a, b) {
-		var dot = a.dot(b);
-		var det = a.x*b.z - a.z*b.x;
-		return Math.atan2(det, dot) 
-	}
-	
 	function controlPlayer(p, dt) {
 		var turnSpeed = 2;
 		var moveDir = new Vector3();
 		var msens = 1/250;
+		
+		p.oldMoveDir.copy(p.moveDir);
+		p.oldLookDir.set(Math.cos(p.angles.y), 0, Math.sin(p.angles.y));
 		
 		p.moveDir.x = 0;
 		p.moveDir.y = 0;
@@ -77,6 +58,11 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 			p.angles.x = Math.max(Math.min(p.angles.x + Input.mouseDeltaY() * msens, Math.PI / 2), -Math.PI / 2);
 		}
 		
+		if(Input.keyPressed("q"))
+			p.flags &= ~(g.F_SOLID);
+		else
+			p.flags |= g.F_SOLID;
+		
 		//var accel = grounded ? groundAccel : airAccel;
 		
 		/*
@@ -105,128 +91,7 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 		p.vel.z += moveDir.z;*/
 	}
 	
-	function movePlayer(p, level, dt) {
-		var playerHeight = 60;
-		var sh = level.findSector({x: p.pos.x, y: p.pos.z}).floorHeight;
-		
-		var oldMoveDir = p.moveDir.clone();
-		var oldLookDir = new Vector3(Math.cos(p.angles.y), 0, Math.sin(p.angles.y));
 
-		controlPlayer(p, dt);
-		
-		
-		
-		
-		var newLookDir = new Vector3(Math.cos(p.angles.y), 0, Math.sin(p.angles.y));
-		var a1 = angle(oldLookDir, oldMoveDir);
-		var a2 = angle(newLookDir, oldMoveDir);
-		var turnAccel = (a1 - a2) * a1;
-		var grounded = player.pos.y < sh + 1;
-		
-		var GROUND_ACCEL = 3000;
-		var AIR_ACCEL = 1000;
-		var accel = grounded ? GROUND_ACCEL : AIR_ACCEL;
-		var dv = new Vector3();
-		var vdir = new Vector3(p.vel.x, 0, p.vel.z);
-		vdir.normalize();
-		
-		dv.x = p.moveDir.x * accel * dt;
-		dv.z = p.moveDir.z * accel * dt;
-		
-		
-		
-		var dvp = dv.dot(vdir);
-		
-		var lim = 320 + 320 * turnAccel * (grounded ? 2.5 : 2);
-		
-		if(dvp > 0 && dvp + p.vel.length() > lim) {
-			dv.x -= dvp * vdir.x;
-			dv.z -= dvp * vdir.z;
-			
-			var corr = lim - (dvp + p.vel.length());
-			dvp = Math.max(0, dvp + corr);
-			
-			dv.x += dvp * vdir.x;
-			dv.z += dvp * vdir.z;
-		}
-		
-		p.vel.x += dv.x;
-		p.vel.z += dv.z;
-		p.vel.y -= 800 * dt;
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		//var groundAccel = 2150*10;
-		//var airAccel = 300;
-		
-		p.pos.x += p.vel.x * dt;
-		p.pos.y += p.vel.y * dt;
-		p.pos.z += p.vel.z * dt;
-		
-		var grounded = false;
-		var res = {};
-		
-		if(level.vsCircle(p.pos.x, p.pos.z, p.pos.y, playerHeight, 25, res) && !Input.keyPressed("q")) {
-			p.pos.x += res.mtx;
-			p.pos.z += res.mtz;
-			var vnp = p.vel.x * res.nx + p.vel.z * res.nz;
-			p.vel.x -= vnp * res.nx;
-			p.vel.z -= vnp * res.nz;
-		}
-		
-		if(p.pos.y < res.floorHeight) {
-			p.pos.y = res.floorHeight;
-			p.vel.y = 0;
-			grounded = true;
-		}
-		
-		if(p.pos.y + playerHeight > res.ceilHeight) {
-			p.pos.y = res.ceilHeight - playerHeight;
-			p.vel.y = 0;
-		}
-		
-
-		
-
-	
-		
-		if(grounded) {
-			if(p.bufferedJumps > 0) {
-				p.vel.y += 15000 * dt;
-				--p.bufferedJumps;
-			}else {
-				if(p.moveDir.length() < 0.1) {
-					p.vel.x *= 0.9;
-					p.vel.z *= 0.9;
-				}
-				
-				if(Math.sqrt(p.vel.x*p.vel.x + p.vel.z*p.vel.z) > 320/0.98) {
-					p.vel.x *= 0.98;
-					p.vel.z *= 0.98;
-				}
-				
-				//p.vel.x *= 0.95;
-				//p.vel.z *= 0.95;
-				/*
-				var speed = Math.sqrt(p.vel.x*p.vel.x + p.vel.z*p.vel.z);
-				if(speed > 0) {
-					var drop = speed * 4 * dt;
-					var k = Math.max(speed - drop, 0) / speed;
-					
-					p.vel.x *= k;
-					p.vel.z *= k;
-				}*/
-			}
-		}
-	}
 	
 	
 	
@@ -251,6 +116,8 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	//});
 	
 	var level;
+	var player;
+	
 	//var resMan = new TextureManager(gl);
 	
 	var resMan = new ResourceManager();
@@ -259,16 +126,22 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 	var levelMesh;
 	var renderer;
 	
-	var player = new Player(1032, 0, -3200);
+	//var player = new Player(1032, 0, -3200);
 	//var player = new Player(1900, 0, 900);
 	//var player = new Player(1700, 0, 1600);
+	
+	var gameState;
+	
+	
 	var things = [];
 	
 	function findThingByCode(code) {
-		for(var i = 0; i < thingTable.length; ++i)
-			if(thingTable[i].code === code)
-				return thingTable[i];
-		return null;
+		//for(var i = 0; i < thingTable.length; ++i)
+			//if(thingTable[i].code === code)
+				//return thingTable[i];
+			
+			
+		return thingTable[code];
 	}
 	
 	resMan.begin();
@@ -281,6 +154,9 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 		//console.log(resMan.get("atlas"));
 		//console.log();
 		level = resMan.get("%current_level%");
+		gameState = new GameState(level);
+		player = gameState.spawnPlayer(1032, -3200);
+		
 		levelMesh = new LevelMesh(gl, level, resMan);
 		renderer = new Renderer(gl, levelMesh);
 		var atlas = resMan.get("atlas");
@@ -326,7 +202,9 @@ require(["Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Ren
 		var dt = (t - lastRenderTime)/1000;
 		lastRenderTime = t;
 		
-		movePlayer(player, level, dt);
+		controlPlayer(player, dt);
+		gameState.logic(dt);
+		//movePlayer(player, level, dt);
 		
 		document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(player.xzSpeed());
 		//" --- Pos: " + Math.floor(player.pos.x) + ", " + Math.floor(player.pos.z);

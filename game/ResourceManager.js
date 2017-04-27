@@ -211,7 +211,7 @@ define([], function() {
 			
 			setTimeout(function() {
 				done();
-			}, 0); // Allows nested loads by returning immediately and postponing the callback.
+			}, 0); // Allows nesting by returning immediately and postponing the callback execution.
 		}
 		
 		for(var i = 0; i < this.queue.length; ++i) {
