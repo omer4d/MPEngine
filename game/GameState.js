@@ -16,15 +16,8 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 		if(ent.flags & g.F_DYNAMIC)
 			this.dynamic.push(ent);
 		
-		if((ent.flags & g.F_SOLID) && entIsStatic(ent)) {
-			var subs = this.level.findCircleSubsectors({x: ent.pos.x, y: ent.pos.z}, ent.rad);
-			
-			for(var j = 0; j < subs.length; ++j) {
-				if(!(subs[j] in this.sectorSolids))
-					this.sectorSolids[subs[j]] = [];
-				this.sectorSolids[subs[j]].push(ent);
-			}
-		}
+		if((ent.flags & g.F_SOLID) && !(ent.flags & g.F_DYNAMIC))
+			addSolidEntity(this.level, this.sectorSolids, ent);
 		
 		if(ent.flags & g.F_PLAYER)
 			this.players.push(ent);
@@ -35,7 +28,7 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 			var thingSpawn = things[i];
 			var thingEntry = thingTable[thingSpawn.code];
 			
-			if(thingEntry) {
+			if(thingEntry && thingEntry.type !== "decor") {
 				var sec = this.level.findSector(thingSpawn);
 				var ent = new StaticProp(thingSpawn.code, thingSpawn.x, sec.floorHeight, thingSpawn.y, thingEntry.rad);
 				this.addEntity(ent);
@@ -75,8 +68,19 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 		return player;
 	};
 	
+	GameState.prototype.nonemptySubsecs = function() {
+		var out = {};
+		var keys = Object.keys(this.sectorSolids);
+		for(var i = 0; i < keys.length; ++i) {
+			if(this.sectorSolids[keys[i]].length > 0)
+				out[keys[i]] = this.sectorSolids[keys[i]];
+		}
+		return out;
+	};
+	
 	GameState.prototype.logic = function(dt) {
 		var i;
+		var dynamicSectorSolids = {};
 		
 		for(i = 0; i < this.dynamic.length; ++i) {
 			var ent = this.dynamic[i];
@@ -97,20 +101,48 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 			var dx = ent.pos.x - ent.oldPos.x;
 			var dz = ent.pos.z - ent.oldPos.z;
 			
-			if(dx*dx + dz*dz < 0.1)
+			if(dx*dx + dz*dz < 0.0001)
 				++ent.inactiveFrames;
 			else
 				ent.inactiveFrames = 0;
 			
-			if(oldInactiveFrames >= 10 && !ent.inactiveFrames) {
-				
-				//console.log("Started moving!");
+			if(oldInactiveFrames > 10 && !ent.inactiveFrames) {
+				removeSolidEntity(this.level, this.sectorSolids, ent);
+				//console.log("Started moving!", this.nonemptySubsecs());
 			}
 			
 			if(ent.inactiveFrames === 10) {
-				//console.log("Stopped moving!");
+				addSolidEntity(this.level, this.sectorSolids, ent);
+				//console.log("Stopped moving!", this.nonemptySubsecs());
+				//console.log("-------------------------------");
+			}
+			
+			if(ent.inactiveFrames < 10) {
+				addSolidEntity(this.level, dynamicSectorSolids, ent);
+				//console.log(dynamicSectorSolids);
 			}
 		}
+		
+		var collisionTests = 0;
+		var keys = Object.keys(dynamicSectorSolids);
+		for(i = 0; i < keys.length; ++i) {
+			var key = keys[i];
+			var dynSubsec = dynamicSectorSolids[key];
+			
+			if(this.sectorSolids[key]) {
+				var statSubsec = this.sectorSolids[key];
+				for(var j = 0; j < dynSubsec.length; ++j) {
+					for(var k = 0; k < statSubsec.length; ++k) {
+						++collisionTests;
+						if(entVsEnt(dynSubsec[j], statSubsec[k])) {
+							entCollisionResponse(dynSubsec[j], statSubsec[k], 1);
+						}
+					}
+				}
+			}
+		}
+		
+		//console.log(collisionTests);
 		
 		for(i = 0; i < this.players.length; ++i)
 			playerCollideLevel(this.players[i], this.level);
@@ -129,6 +161,36 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 	//function entMotionEnded(ent) {
 	//	return ent.vel.xzLenSquare() < 1 && ent.oldVel.xzLenSquare() > 1;
 	//}
+	
+	function addSolidEntity(level, sectorSolids, ent) {
+		var subs = level.findCircleSubsectors({x: ent.pos.x, y: ent.pos.z}, ent.rad);
+		
+		for(var j = 0; j < subs.length; ++j) {
+			if(!(subs[j] in sectorSolids))
+				sectorSolids[subs[j]] = [];
+			sectorSolids[subs[j]].push(ent);
+		}
+	};
+	
+	function removeSolidEntity(level, sectorSolids, ent) {
+		// Some margin of tolerance is necessary
+		// because the entity might have moved a tiny bit since the time it was added to sectorSolids:
+		var subs = level.findCircleSubsectors({x: ent.oldPos.x, y: ent.oldPos.z}, ent.rad + 3);
+		
+		for(var j = 0; j < subs.length; ++j) {
+			if(subs[j] in sectorSolids)
+				removeFromArray(sectorSolids[subs[j]], ent);
+		}
+	};
+	
+	function removeFromArray(arr, item) {
+		var i = arr.indexOf(item);
+		if(i > -1) {
+			arr.splice(i, 1);
+		}
+		//else
+			//throw new Error("Item not found!");
+	}
 	
 	function entIsStatic(ent) {
 		return !(ent.flags & g.F_DYNAMIC) || (ent.vel.x === 0 && ent.vel.z === 0);
@@ -245,6 +307,47 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 		
 		p.grounded = grounded;
 	}
+	
+	
+	function entVsEnt(a, b) {
+		var dx = b.pos.x - a.pos.x;
+		var dz = b.pos.z - a.pos.z;
+		var rsum = a.rad + b.rad;
+		return dx * dx + dz * dz <= rsum * rsum;
+	}
+
+	function entCollisionResponse(a, b, bounciness) {
+		var dx = b.pos.x - a.pos.x;
+		var dz = b.pos.z - a.pos.z;
+		
+		var dist = Math.sqrt(dx * dx + dz * dz);
+		var mtd = (dist - (a.rad + b.rad));
+		var lenVa = (a.flags & g.F_DYNAMIC) ? (Math.sqrt(a.vel.x * a.vel.x + a.vel.z * a.vel.z) * bounciness) : 0;
+		var lenVb = (b.flags & g.F_DYNAMIC) ? (Math.sqrt(b.vel.x * b.vel.x + b.vel.z * b.vel.z) * bounciness) : 0;
+		var wa = a.flags & g.F_DYNAMIC ? 1 : 0;
+		var wb = b.flags & g.F_DYNAMIC ? 1 : 0;
+		var k = wa / (wa + wb);
+		
+		//var wa = !(a.flags & g.F_DYNAMIC) ? 
+
+		dx /= dist;
+		dz /= dist;
+
+		a.pos.x += dx * mtd * k;
+		a.pos.z += dz * mtd * k;
+		b.pos.x -= dx * mtd * (1 - k);
+		b.pos.z -= dz * mtd * (1 - k);
+
+		if(a.flags & g.F_DYNAMIC) {
+			a.vel.x = -dx * lenVb;
+			a.vel.z = -dz * lenVb;
+		}
+		if(b.flags & g.F_DYNAMIC) {
+			b.vel.x = dx * lenVa;
+			b.vel.z = dz * lenVa;
+		}
+	}
+	
 	
 	return GameState;
 });
