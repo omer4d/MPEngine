@@ -1,7 +1,4 @@
-define(["Mesh", "Wad"], function(Mesh, Wad) {
-	var DEBUG_SHOW_SUBSECTORS = false;
-	var DEBUG_SHOW_GRID = false;
-	
+define(["ConVars", "Mesh", "Wad"], function(cvars, Mesh, Wad) {
 	function wadToMesh(gl, level, texMan) {
 		var lumps = level.lumps;
 		var mesh = new Mesh(gl);
@@ -116,7 +113,7 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 			
 			var r, g, b;
 			
-			if(DEBUG_SHOW_SUBSECTORS) {
+			if(cvars.debug_show_subsectors) {
 				r = Math.floor(Math.random() * 100 + 100);
 				g = Math.floor(Math.random() * 100 + 100);
 				b = Math.floor(Math.random() * 100 + 100);
@@ -244,12 +241,13 @@ define(["Mesh", "Wad"], function(Mesh, Wad) {
 		var jointTris = [];
 		var jointColors = [];
 		var jointTexCoords = [];
+		var debugGrid = cvars.debug_show_grid || cvars.debug_show_subsectors;
 		
 		triTexList.forEach(function(key) {
 			if(key === "F_SKY1")
 				return;
 			
-			submeshes.push({tex: texMan.get(key) ? texMan.get(DEBUG_SHOW_GRID ? "debug_grid" : key).handle : null,
+			submeshes.push({tex: texMan.get(key) ? texMan.get(debugGrid ? "debug_grid" : key).handle : null,
 								start: jointTris.length/3, len: tris[key].length/3});
 			Array.prototype.push.apply(jointTris, tris[key]);
 		});

@@ -1,6 +1,4 @@
-define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
-	var DEBUG_SIMPLE_SHADERS = false;
-	
+define(["ConVars", "Matrix4", "GLUtil", "DynamicMesh"], function(cvars, m4, GLUtil, DynamicMesh) {
 	var vertexShaderSource = `
 		attribute vec4 a_position;
 		attribute vec4 a_color;
@@ -166,7 +164,7 @@ define(["Matrix4", "GLUtil", "DynamicMesh"], function(m4, GLUtil, DynamicMesh) {
 	
 	
 	function Renderer(gl, levelMesh) {
-		var program = buildProgram(gl, vertexShaderSource, DEBUG_SIMPLE_SHADERS ? simpleFragmentShaderSource : fragmentShaderSource);
+		var program = buildProgram(gl, vertexShaderSource, (cvars.r_use_simple_shaders || cvars.debug_show_subsectors) ? simpleFragmentShaderSource : fragmentShaderSource);
 		var spriteProgram = program;
 		var skyProgram = buildProgram(gl, skyVertexShaderSource, skyFragmentShaderSource);
 		
