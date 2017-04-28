@@ -60,7 +60,12 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		if(Input.mouseLocked()) {
 			p.angles.y += Input.mouseDeltaX() * msens;
 			p.angles.x = Math.max(Math.min(p.angles.x + Input.mouseDeltaY() * msens, Math.PI / 2), -Math.PI / 2);
+			if(Input.buttonJustPressed(1)) {
+				p.commands.push({type: "shoot"});
+			}
 		}
+		
+
 		
 		if(Input.keyPressed("q"))
 			p.flags &= ~(g.F_SOLID);
@@ -242,6 +247,8 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 			renderer.pushSprite2(things[i].reg, things[i].x, things[i].y, things[i].z, nx, ny, things[i].light);
 			
 		}
+		renderer.pushSprite2(atlas.get("tfoga0"), player.lastHitX, player.lastHitY, player.lastHitZ, nx, ny, 255);
+		
 		renderer.endSprites();
 		
 		firstTime = false;

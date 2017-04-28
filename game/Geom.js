@@ -137,9 +137,10 @@ define([], function() {
 		var t = (vx*nx + vy*ny) / (ray.dirX*nx + ray.dirY*ny);
 		var px = ray.x + t*ray.dirX;
 		var py = ray.y + t*ray.dirY;
-		
-		if(px >= Math.min(line.x1, line.x2) && px <= Math.max(line.x1, line.x2) &&
-			py >= Math.min(line.y1, line.y2) && py <= Math.max(line.y1, line.y2)) {
+		var e = 0.001;
+
+		if(px + e >= Math.min(line.x1, line.x2) && px - e <= Math.max(line.x1, line.x2) &&
+			py + e >= Math.min(line.y1, line.y2) && py - e <= Math.max(line.y1, line.y2)) {
 			
 			if(out) {
 				out.x = px;
@@ -247,6 +248,7 @@ define([], function() {
 		Ray: Ray,
 		Circle: Circle,
 		Seg: Seg,
+		AABB: AABB,
 		
 		circleVsSeg: circleVsSeg,
 		

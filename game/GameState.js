@@ -78,7 +78,56 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 		return out;
 	};
 	
+		
+	GameState.prototype.handlePlayerCommands = function(player) {
+		//for(var i = 0; i < player.commands.length; ++i) {
+			//var cmd = player.commands[i];
+			
+			//if(cmd.type === "shoot") {
+				//var cameraMatrix =  m4.translation(player.pos.x, player.pos.y + 40, player.pos.z);
+				//cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.y);
+				//cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
+				//console.log("lel!");
+				
+				
+				var ray = {
+					x: player.pos.x,
+					y: player.pos.y + 40,
+					z: player.pos.z,
+					dirX: Math.cos(player.angles.y)*100,
+					dirY: 0,
+					dirZ: Math.sin(player.angles.y)*100
+				};
+				
+				var res = this.level.raycast(ray, function(hit, sectorIdx, hitData) {
+					//if(hit)
+						//console.log("HIT!");
+					return false;
+				});
+				
+				//player.lastHitX = player.pos.x + Math.cos(player.angles.y) * 100;
+				//player.lastHitZ = player.pos.z + Math.sin(player.angles.y) * 100;
+				
+				if(res) {
+					player.lastHitX = ray.x + ray.dirX * res.t * 0.95;
+					player.lastHitY = ray.y + ray.dirY * res.t * 0.95;
+					player.lastHitZ = ray.z + ray.dirZ * res.t * 0.95;
+				}else {
+					player.lastHitX = 0;
+					player.lastHitY = 0;
+					player.lastHitZ = 0;
+				}
+				
+				//console.log(!!res);
+			//}
+		//}
+		
+		player.commands = [];
+	};
+	
 	GameState.prototype.logic = function(dt) {
+		dt = 1/60;
+		
 		var i;
 		var dynamicSectorSolids = {};
 		
@@ -87,8 +136,10 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 			ent.oldPos.copy(ent.pos);
 		}
 		
-		for(i = 0; i < this.players.length; ++i)
+		for(i = 0; i < this.players.length; ++i) {
+			this.handlePlayerCommands(this.players[i]);
 			accelPlayer(this.players[i], dt);
+		}
 		
 		for(i = 0; i < this.dynamic.length; ++i) {
 			var ent = this.dynamic[i];
@@ -123,6 +174,7 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 			}
 		}
 		
+		
 		var collisionTests = 0;
 		var keys = Object.keys(dynamicSectorSolids);
 		for(i = 0; i < keys.length; ++i) {
@@ -152,6 +204,10 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 	
 	
 	
+	
+	
+	
+
 	
 	
 	//function entMotionStarted(ent) {
@@ -204,6 +260,13 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 		var dot = a.dot(b);
 		var det = a.x*b.z - a.z*b.x;
 		return Math.atan2(det, dot) 
+	}
+	
+	function accelPlayer2(p, dt) {
+		p.vel.x += p.moveDir.x * 1000 * dt;
+		p.vel.z += p.moveDir.z * 1000 * dt;
+		p.vel.x *= 0.96;
+		p.vel.z *= 0.96;
 	}
 	
 	function accelPlayer(p, dt) {

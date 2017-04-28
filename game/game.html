@@ -16,12 +16,22 @@
 			right: 0;
 			image-rendering: pixelated;
 		}
+		#crosshair {
+			position: absolute;
+			margin: auto;
+			display: block;
+			top: 0;
+			bottom: 0;
+			left: 0;
+			right: 0;
+		}
 		</style>
 	</head>
 	<body>
 		<b id="fpsCounter">FPS: 0</b><br/>
 		<b id="speedCounter">SPEED: 0</b><br/>
 		<canvas id="myCanvas" width="512" height="384"></canvas>
+		<img id="crosshair" src="data/gui/crosshair.png"/>
 		<script src="lib/require.js" data-main="Main"></script>
 	</body>
 </html>

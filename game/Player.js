@@ -8,12 +8,17 @@ define(["GameConsts", "Vector3"], function(g, Vector3) {
 		this.inactiveFrames = 0;
 		this.rad = 25;
 		
+		this.commands = [];
+		
 		this.angles = new Vector3();
 		this.moveDir = new Vector3();
 		this.oldMoveDir = new Vector3();
 		this.oldLookDir = new Vector3();
 		this.grounded = false;
 		this.bufferedJumps = 0;
+		
+		this.lastHitX = 0;
+		this.lastHitZ = 0;
 	}
 	
 	Player.prototype.xzSpeed = function() {
