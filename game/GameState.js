@@ -348,6 +348,8 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 		}
 	}
 	
+
+	
 	
 	return GameState;
 });

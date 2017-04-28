@@ -1,4 +1,4 @@
-define([], function() {
+define(["Geom"], function(Geom) {
 	function Level(lumps) {
 		this.lumps = lumps;
 	}
@@ -212,63 +212,12 @@ define([], function() {
 		var idx = pos ? linedef.posSidedefIdx : linedef.negSidedefIdx;
 		return idx === 0xFFFF ? null : lumps.SECTORS[lumps.SIDEDEFS[idx].sectorIdx];
 	}
-	
-	function circleVsSeg(seg, cx, cy, rad, out) {
-		var dx = seg.x2 - seg.x1;
-		var dy = seg.y2 - seg.y1;
-		var len = Math.sqrt(dx*dx + dy*dy);
-		var nx = -dy;
-		var ny = dx;
-		
-		nx /= len;
-		ny /= len;
-		
-		var vx1 = cx - seg.x1;
-		var vy1 = cy - seg.y1;
-		var dpt = dx*vx1 + dy*vy1;
-		
-		if(dpt >= 0 && dpt < dx*dx+dy*dy) {
-			var dpn = nx*vx1 + ny*vy1;
-			var mtd1 = rad - dpn;
-			var mtd2 = -rad - dpn;
-			var mtd = dpn > 0 ? mtd1 : mtd2;
-			out.mtx = nx * mtd;
-			out.mty = ny * mtd;
-			out.nx = nx;
-			out.ny = ny;
-			return Math.abs(dpn) <= rad;
-		}else {
-			var vx2 = cx - seg.x2;
-			var vy2 = cy - seg.y2;
-			var d1 = vx1*vx1 + vy1*vy1;
-			var d2 = vx2*vx2 + vy2*vy2;
-			
-			if(d1 > rad*rad && d2 > rad*rad)
-				return false;
-			
-			if(d1 < d2) {
-				d1 = Math.sqrt(d1);
-				var nx = vx1/d1;
-				var ny = vy1/d1;
-				out.mtx = nx * (rad - d1);
-				out.mty = ny * (rad - d1);
-				out.nx = nx;
-				out.ny = ny;
-			}else {
-				d2 = Math.sqrt(d2);
-				var nx = vx2/d2;
-				var ny = vy2/d2;
-				out.mtx = nx * (rad - d2);
-				out.mty = ny * (rad - d2);
-				out.nx = nx;
-				out.ny = ny;
-			}
-			
-			return true;
-		}
-	}
 
 	Level.prototype.vsCircle = function(x, y, h, ph, rad, res) {
+		var tmpCircle = new Geom.Circle(0, 0, 0);
+		var tmpSeg = new Geom.Seg(0, 0);
+		var out = new Geom.IntersectionTestResult();
+		
 		var lumps = this.lumps;
 		var posX = x, posY = y;
 		var subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
@@ -287,11 +236,9 @@ define([], function() {
 				for(var j = 0; j < sub.segNum; ++j) {
 					var tseg = lumps.GL_SEGS[sub.firstSegIdx + j];
 					if(tseg.linedefIdx !==  0xFFFF) {
-						var out = {};
 						var linedef = lumps.LINEDEFS[tseg.linedefIdx];
 						var v1 = lumps.VERTEXES[linedef.v1Idx];
 						var v2 = lumps.VERTEXES[linedef.v2Idx];
-						var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
 						var side = this.segSide(linedef, {x: posX, y: posY});
 						var otherSector = linedefSector(lumps, linedef, side === 1);
 						
@@ -299,7 +246,7 @@ define([], function() {
 								otherSector.floorHeight > h + 30 ||
 								otherSector.ceilHeight < h + ph ||
 								otherSector.ceilHeight - otherSector.floorHeight < ph) &&
-							circleVsSeg(seg, posX, posY, rad, out)) {
+							Geom.circleVsSeg(tmpCircle.init(posX, posY, rad), tmpSeg.init(v1.x, v1.y, v2.x, v2.y), out)) {
 							
 								
 							mtx += out.mtx;
@@ -335,11 +282,9 @@ define([], function() {
 			for(var j = 0; j < sub.segNum; ++j) {
 				var tseg = lumps.GL_SEGS[sub.firstSegIdx + j];
 				if(tseg.linedefIdx !==  0xFFFF) {
-					var out = {};
 					var linedef = lumps.LINEDEFS[tseg.linedefIdx];
 					var v1 = lumps.VERTEXES[linedef.v1Idx];
 					var v2 = lumps.VERTEXES[linedef.v2Idx];
-					var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
 					var side = this.segSide(linedef, {x: posX, y: posY});
 					var otherSector = linedefSector(lumps, linedef, side === 1);
 					
@@ -348,7 +293,7 @@ define([], function() {
 							otherSector.floorHeight > h + 30 ||
 							otherSector.ceilHeight < h + ph ||
 							otherSector.ceilHeight - otherSector.floorHeight < ph) &&
-						circleVsSeg(seg, posX, posY, rad, out)) {
+						Geom.circleVsSeg(tmpCircle.init(posX, posY, rad), tmpSeg.init(v1.x, v1.y, v2.x, v2.y), out)) {
 							
 						if(otherSector && otherSector.floorHeight > floorHeight)
 							floorHeight = otherSector.floorHeight;
@@ -370,6 +315,61 @@ define([], function() {
 		
 		return flag;
 	};
+	
+	Level.prototype.followRayHelper = function(idx, ray) {
+		var lumps = this.lumps;
+		var LEAF_FLAG = 1 << 15;
+		
+		if(idx & LEAF_FLAG) {
+			var sub = lumps.GL_SSECT[idx & ~LEAF_FLAG];
+			var tmin = 10000000;
+			var res = null;
+			
+			for(var j = 0; j < sub.segNum; ++j) {
+				var tseg = lumps.GL_SEGS[sub.firstSegIdx + j];
+
+				if(tseg.linedefIdx !==  0xFFFF) {
+					var out = {};
+					var linedef = lumps.LINEDEFS[tseg.linedefIdx];
+					var v1 = lumps.VERTEXES[linedef.v1Idx];
+					var v2 = lumps.VERTEXES[linedef.v2Idx];
+					var seg = {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y};
+					//var seg = translateGlSeg(lumps, tseg);
+					
+					if(rayVsSeg(ray, seg, out) && out.t >= 0 && out.t < tmin) {
+						tmin = out.t;
+						res = out;
+					}
+				}
+			}
+			
+			return res;
+		}else {
+			var node = lumps.GL_NODES[idx];
+			var doLeft = Geom.cheapRayVsAABB(ray, node.leftAABB);
+			var doRight = Geom.cheapRayVsAABB(ray, node.rightAABB);
+			++tests;
+			
+			if(doLeft && doRight) {
+				var nx = -node.dy;
+				var ny = node.dx;
+				var dx = ray.x - node.x;
+				var dy = ray.y - node.y;
+				
+				if(nx*dx+ny*dy >= 0)
+					return followRayHelper(node.leftChildIdx, ray) || followRayHelper(node.rightChildIdx, ray);
+				else
+					return followRayHelper(node.rightChildIdx, ray) || followRayHelper(node.leftChildIdx, ray);
+			}
+			else if(doLeft)
+				return followRayHelper(node.leftChildIdx, ray);
+			else if(doRight)
+				return followRayHelper(node.rightChildIdx, ray);
+			else
+				return null;
+		}
+	};
+	
 	
 	return Level;
 });

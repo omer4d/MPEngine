@@ -559,21 +559,9 @@ function raySubsectors(lumps, idx, ray) {
 			}
 		}
 		
-        return res;		
+        return res;
     }else {
         var node = lumps.GL_NODES[idx];
-		
-		/*
-		var nx = -node.dy;
-		var ny = node.dx;
-		var dx = ray.x - node.x;
-		var dy = ray.y - node.y;
-		
-		if(nx*dx+ny*dy >= 0)
-			return raySubsectors(lumps, node.leftChildIdx, ray) || raySubsectors(lumps, node.rightChildIdx, ray);
-		else
-			return raySubsectors(lumps, node.rightChildIdx, ray) || raySubsectors(lumps, node.leftChildIdx, ray);*/
-		
 		var doLeft = rayVsAABB(ray, node.leftAABB);
 		var doRight = rayVsAABB(ray, node.rightAABB);
 		++tests;
