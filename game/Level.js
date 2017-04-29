@@ -1,4 +1,6 @@
 define(["Geom"], function(Geom) {
+	var INF = 100000000;
+	
 	function Level(lumps) {
 		this.lumps = lumps;
 	}
@@ -316,6 +318,64 @@ define(["Geom"], function(Geom) {
 		return flag;
 	};
 	
+	
+	function handleRayEntry(ray, t, sec) {
+		var py = ray.y + ray.dirY * t;
+		if(py < sec.floorHeight || py > sec.ceilHeight)
+			return {t: t};
+		return null;
+	}
+	
+	function handleRayExit(ray, t, sec, oneSided) {
+		var py = ray.y + ray.dirY * t;
+		if(py < sec.floorHeight)
+			return {t: (sec.floorHeight - ray.y) / ray.dirY};
+		else if(py > sec.ceilHeight)
+			return {t: (sec.ceilHeight - ray.y) / ray.dirY};
+		else
+			return oneSided ? {t: t} : null;
+	}
+	
+	Level.prototype.rayVsSubsec = function(sub, ray) {
+		var lumps = this.lumps;
+		var ray2d = new Geom.Ray(ray.x, ray.z, ray.dirX, ray.dirZ);
+		var tmin = INF, tmax = -INF;
+		var minSeg, maxSeg;
+		var tmp = {};
+		
+		for(var i = 0; i < sub.segNum; ++i) {
+			var seg = lumps.GL_SEGS[sub.firstSegIdx + i];
+			
+			if(seg.linedefIdx != 0xFFFF && Geom.rayVsSeg(ray2d, this.translateGlSeg(seg), tmp) && tmp.t >= 0) {
+				if(tmp.t < tmin) {
+					tmin = tmp.t;
+					minSeg = seg;
+				}
+				
+				if(tmp.t > tmax) {
+					tmax = tmp.t;
+					maxSeg = seg;
+				}
+			}
+		}
+		
+		if(tmin < tmax) {
+			var ldmax = lumps.LINEDEFS[maxSeg.linedefIdx];
+			var sec = lumps.SECTORS[lumps.SIDEDEFS[maxSeg.side === 0 ? ldmax.posSidedefIdx : ldmax.negSidedefIdx].sectorIdx];
+			return handleRayEntry(ray, tmin, sec) || handleRayExit(ray, tmax, sec, oneSidedLinedef(ldmax));
+		}else if(tmin === tmax) {
+			var ldmax = lumps.LINEDEFS[maxSeg.linedefIdx];
+			var sec = lumps.SECTORS[lumps.SIDEDEFS[maxSeg.side === 0 ? ldmax.posSidedefIdx : ldmax.negSidedefIdx].sectorIdx];
+			var raySide = this.pointSegDist(ldmax, {x: ray.x, y: ray.z}) < 0 ? 1 : 0; // 1 means left side
+			if(raySide === maxSeg.side)
+				return handleRayEntry(ray, tmin, sec);
+			else
+				return handleRayExit(ray, tmax, sec, oneSidedLinedef(ldmax));
+		}else
+			return null;
+	}
+	
+	
 	Level.prototype.raycastHelper = function(idx, ray, callback) {
 		var lumps = this.lumps;
 		var LEAF_FLAG = 1 << 15;
@@ -323,38 +383,8 @@ define(["Geom"], function(Geom) {
 		
 		if(idx & LEAF_FLAG) {
 			var sub = lumps.GL_SSECT[idx & ~LEAF_FLAG];
-			var tmin = 10000000;
-			var res = null;
-			var tmpSeg = new Geom.Seg();
-			
-			if(!callback || !callback(false, idx & ~LEAF_FLAG)) {
-				for(var j = 0; j < sub.segNum; ++j) {
-					var tseg = lumps.GL_SEGS[sub.firstSegIdx + j];
-					
-					if(tseg.linedefIdx !== 0xFFFF) {
-						var out = {};
-						var linedef = lumps.LINEDEFS[tseg.linedefIdx];
-						var v1 = lumps.VERTEXES[linedef.v1Idx];
-						var v2 = lumps.VERTEXES[linedef.v2Idx];
-						
-						//tmpSeg.init(v1.x, v1.y, v2.x, v2.y);
-						
-						var f = Geom.rayVsSeg(ray2d, this.translateGlSeg(tseg), out);
-						
-						if(f && out.t >= 0 && out.t < tmin) {
-							tmin = out.t;
-							res = out;
-						}
-					}
-				}
-			}
-			
-			if(res && callback)
-				callback(true, idx & ~LEAF_FLAG, res);
-			
-			return res;
+			return this.rayVsSubsec(sub, ray);
 		}else {
-			
 			/*
 			var node = lumps.GL_NODES[idx];
 			var nx = -node.dy;
@@ -397,13 +427,12 @@ define(["Geom"], function(Geom) {
 		}
 	};
 	
-	var INF = 100000000;
-	
 	function between(x, min, max) {
-		return x >= min && x <= max;
+		return x + 0.001 >= min && x - 0.001 <= max;
 	}
 	
 	Level.prototype.raycast = function(ray, callback) {
+		/*
 		var res = null;
 		var tmin = INF;
 		var ray2d = new Geom.Ray(ray.x, ray.z, ray.dirX, ray.dirZ);
@@ -414,25 +443,42 @@ define(["Geom"], function(Geom) {
 			var v2 = this.lumps.VERTEXES[linedef.v2Idx];
 			var out = {};
 			var f = Geom.rayVsSeg(ray2d, {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y}, out);
-			var negSec = this.findLinedefSector(linedef, true);
-			var posSec = this.findLinedefSector(linedef, false);
 			
-			var miny = Math.max(posSec ? posSec.floorHeight : -INF, negSec ? negSec.floorHeight : -INF);
-			var maxy = Math.min(posSec ? posSec.ceilHeight : INF, negSec ? negSec.ceilHeight : INF);
-			
-			if(f)
-				console.log(ray.y + ray.dirY * out.t, miny, maxy);
-			
-			if(f && out.t >= 0 && out.t < tmin && (!between(ray.y + ray.dirY * out.t, miny, maxy) !== oneSidedLinedef(linedef))) {
-				tmin = out.t;
-				res = out;
+			if(f && out.t >= 0 && out.t < tmin) {
+				var negSec = this.findLinedefSector(linedef, true);
+				var posSec = this.findLinedefSector(linedef, false);
+				var miny = Math.max(posSec ? posSec.floorHeight : -INF, negSec ? negSec.floorHeight : -INF);
+				var maxy = Math.min(posSec ? posSec.ceilHeight : INF, negSec ? negSec.ceilHeight : INF);
+				var py =  ray.y + ray.dirY * out.t;
+
+				if(!between(py, miny, maxy) || oneSidedLinedef(linedef)) {
+					var dist = this.pointSegDist(linedef, {x: ray.x, y: ray.z});
+					var sec = dist < 0 ? posSec : negSec;
+					
+					if(sec) {
+						if(py > sec.ceilHeight - 2) {
+							var t = (sec.ceilHeight - ray.y) / ray.dirY;
+							if(t >= 0)
+								out.t = t;
+						}
+						
+						//else if(py < sec.floorHeight + 1) {
+						//	var t = (sec.floorHeight - ray.y) / ray.dirY;
+						//	if(t >= 0)
+						//		out.t = t;
+						//}
+						
+						tmin = out.t;
+						res = out;
+					}
+				}
 			}
 		}
 	
-		return res;
+		return res;*/
 		
 		
-		//return this.raycastHelper(this.lumps.GL_NODES.length - 1, ray, callback);
+		return this.raycastHelper(this.lumps.GL_NODES.length - 1, ray, callback);
 	};
 	
 	return Level;

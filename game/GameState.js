@@ -1,4 +1,4 @@
-define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"], function(g, Vector3, Level, thingTable, StaticProp, Player) {
+define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp", "Player"], function(g, Vector3, m4, Level, thingTable, StaticProp, Player) {
 	function GameState(level) {
 		this.level = level;
 		
@@ -88,15 +88,23 @@ define(["GameConsts", "Vector3", "Level", "ThingTable", "StaticProp", "Player"],
 				//cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.y);
 				//cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
 				//console.log("lel!");
+				var cameraMatrix =  m4.translation(0, 0, 0);
 				
+				
+				cameraMatrix = m4.yRotate(cameraMatrix,  Math.PI/2 + player.angles.y);
+				cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
+				var rayDir = m4.vectorMultiply([0, 0, -1, 1], cameraMatrix);
+				
+				
+				console.log(player.angles.x);
 				
 				var ray = {
 					x: player.pos.x,
 					y: player.pos.y + 40,
 					z: player.pos.z,
-					dirX: Math.cos(player.angles.y)*100,
-					dirY: 0,
-					dirZ: Math.sin(player.angles.y)*100
+					dirX: rayDir[0], //Math.cos(player.angles.y)*30,
+					dirY: rayDir[1],
+					dirZ: rayDir[2]
 				};
 				
 				var res = this.level.raycast(ray, function(hit, sectorIdx, hitData) {

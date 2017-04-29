@@ -247,7 +247,9 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 			renderer.pushSprite2(things[i].reg, things[i].x, things[i].y, things[i].z, nx, ny, things[i].light);
 			
 		}
-		renderer.pushSprite2(atlas.get("tfoga0"), player.lastHitX, player.lastHitY, player.lastHitZ, nx, ny, 255);
+		
+		var rrr = atlas.get("bal1a0");
+		renderer.pushSprite2(rrr, player.lastHitX, player.lastHitY - rrr.height/2, player.lastHitZ, nx, ny, 255);
 		
 		renderer.endSprites();
 		
