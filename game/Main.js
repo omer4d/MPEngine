@@ -206,6 +206,9 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 	Input.setMouseLockable(canvas);
 	
 	var firstTime = true;
+	var catchup = 0;
+	var fov = 3.14/2*0.8;
+	var bob = 0;
 	
 	function renderLoop() {
 		Input.refresh();
@@ -221,13 +224,26 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(player.xzSpeed());
 		//" --- Pos: " + Math.floor(player.pos.x) + ", " + Math.floor(player.pos.z);
 		
+		var xzSpeed = player.xzSpeed();
+		var targetFov = 3.14/2*0.8+xzSpeed/9000;
+		fov += (targetFov - fov) * 0.06;
+		
 		var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight * (1.2);
 		var zNear = 5;
 		var zFar = 10000;
-		var projectionMatrix = m4.perspective(3.14/2*0.8, aspect, zNear, zFar);
+		var projectionMatrix = m4.perspective(fov, aspect, zNear, zFar);
 
-		var cameraMatrix =  m4.translation(player.pos.x, player.pos.y + 40, player.pos.z);
+		var lookX = Math.cos(player.angles.y);
+		var lookZ = Math.sin(player.angles.y);
+		var vp = (-lookZ*player.vel.x+lookX*player.vel.z);
+		catchup += (vp - catchup) * 0.03;
+		
+		if(Math.abs(player.vel.y) < 5)
+			bob += xzSpeed / 2500;
+		
+		var cameraMatrix =  m4.translation(player.pos.x, player.pos.y + 40 + Math.cos(bob)*2, player.pos.z);
 		cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.y);
+		cameraMatrix = m4.zRotate(cameraMatrix, (vp - catchup) / -7000);
 		cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
 		
 		var atlas = resMan.get("atlas");
