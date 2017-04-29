@@ -603,16 +603,6 @@ define([], {
       "type": "decor",
       "hanging": false
    },
-   "82": {
-      "code": 82,
-      "rad": 20,
-      "sprite": "SGN2",
-      "idleSeq": [
-         "A"
-      ],
-      "type": "weapon",
-      "hanging": false
-   },
    "85": {
       "code": 85,
       "rad": 16,

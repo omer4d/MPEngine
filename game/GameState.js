@@ -28,7 +28,7 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 			var thingSpawn = things[i];
 			var thingEntry = thingTable[thingSpawn.code];
 			
-			if(thingEntry && thingEntry.type !== "decor") {
+			if(thingEntry && (thingEntry.type === "obstacle" || thingEntry.type === "weapon")) {
 				var sec = this.level.findSector(thingSpawn);
 				var ent = new StaticProp(thingSpawn.code, thingSpawn.x, sec.floorHeight, thingSpawn.y, thingEntry.rad);
 				this.addEntity(ent);
