@@ -226,6 +226,8 @@ define(["Geom"], function(Geom) {
 		var flag = false;
 		var nx = 0;
 		var ny = 0;
+		var nxAbs = 0;
+		var nyAbs = 0;
 		
 		for(var z = 0; z < 5; ++z) {
 			var mtx = 0;
@@ -310,10 +312,16 @@ define(["Geom"], function(Geom) {
 		var nlen = Math.sqrt(nx*nx + ny*ny);
 		res.mtx = posX - x;
 		res.mtz = posY - y;
-		res.nx = nx / nlen;
-		res.nz = ny / nlen;
+		res.nx = nx / nlen || 0;
+		res.nz = ny / nlen || 0;
 		res.floorHeight = floorHeight;
 		res.ceilHeight = ceilHeight;
+		
+		//if(flag && (isNaN(res.mtx) || isNaN(res.mtz) || isNaN(res.nx) || isNaN(res.nz) || isNaN(res.floorHeight) || isNaN(res.ceilHeight))) {
+		//	console.log(nx, ny, nxAbs, nyAbs);
+		//	console.log(res);
+		//	debugger;
+		//}
 		
 		return flag;
 	};

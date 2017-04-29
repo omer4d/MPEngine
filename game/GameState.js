@@ -95,9 +95,6 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 				cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
 				var rayDir = m4.vectorMultiply([0, 0, -1, 1], cameraMatrix);
 				
-				
-				console.log(player.angles.x);
-				
 				var ray = {
 					x: player.pos.x,
 					y: player.pos.y + 40,
@@ -401,8 +398,13 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 		
 		//var wa = !(a.flags & g.F_DYNAMIC) ? 
 
-		dx /= dist;
-		dz /= dist;
+		if(dist > 0) {
+			dx /= dist;
+			dz /= dist;
+		}else {
+			dx = 1;
+			dz = 0;
+		}
 
 		a.pos.x += dx * mtd * k;
 		a.pos.z += dz * mtd * k;
