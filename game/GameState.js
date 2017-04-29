@@ -360,10 +360,15 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 			var vnp = p.vel.x * res.nx + p.vel.z * res.nz;
 			p.vel.x -= vnp * res.nx;
 			p.vel.z -= vnp * res.nz;
+			console.log("colliding!");
 		}
 		
 		if(p.pos.y < res.floorHeight) {
-			p.pos.y = res.floorHeight;
+			if(p.vel.y <= 0)
+				p.pos.y += (res.floorHeight - p.pos.y) * 0.3;
+			else
+				p.pos.y = res.floorHeight;
+			
 			p.vel.y = 0;
 			grounded = true;
 		}
