@@ -181,8 +181,7 @@ define([], function() {
 		return c1 && c2 && c3;
 	};
 	
-	function rayVsCircle(ray, circle, out) {
-		var cx = circle.x, cy = circle.y, r = circle.rad;
+	function rayVsCircleHelper(ray, cx, cy, r, out) {
 		var sx = ray.x - cx;
 		var sy = ray.y - cy;
 		
@@ -210,6 +209,10 @@ define([], function() {
 			return false;
 	}
 
+	function rayVsCircle(ray, circle, out) {
+		return rayVsCircleHelper(ray, circle.x, circle.y, circle.rad, out);
+	}
+
 	function rayVsCapsule(ray, seg, r, out) {
 		var nx = -(seg.y2 - seg.y1);
 		var ny = seg.x2 - seg.x1;
@@ -228,9 +231,9 @@ define([], function() {
 		
 		if(rayVsSeg(ray, tseg, out))
 			ts.push(out.t);
-		if(rayVsCircle(ray, seg.x1, seg.y1, r, out))
+		if(rayVsCircleHelper(ray, seg.x1, seg.y1, r, out))
 			ts.push(out.t);
-		if(rayVsCircle(ray, seg.x2, seg.y2, r, out))
+		if(rayVsCircleHelper(ray, seg.x2, seg.y2, r, out))
 			ts.push(out.t);
 
 		if(ts.length === 0)

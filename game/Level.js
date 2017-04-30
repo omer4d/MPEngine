@@ -254,6 +254,7 @@ define(["Geom"], function(Geom) {
 							
 							var foo = false;
 							if(otherSector && otherSector.ceilHeight < h + ph) {
+								
 								//var dy = h + ph - otherSector.ceilHeight;
 								//foo = dy*dy < (out.mtx*out.mtx + out.mty * out.mty);
 								//console.log("WEW!");
@@ -335,6 +336,54 @@ define(["Geom"], function(Geom) {
 		//}
 		
 		return flag;
+	};
+	
+	Level.prototype.findHeight = function(obj, ph, rad, res) {
+		var tmpCircle = new Geom.Circle(0, 0, 0);
+		var tmpSeg = new Geom.Seg(0, 0);
+		var out = new Geom.IntersectionTestResult();
+		
+		var lumps = this.lumps;
+		var posX = obj.pos.x, posY = obj.pos.y, h = obj.pos.z;
+		var subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
+			
+		var centerSub = this.findSector({x: posX, y: posY});
+		var floorHeight = centerSub.floorHeight;
+		var ceilHeight = centerSub.ceilHeight;
+		
+		subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
+
+		for(i = 0; i < subs.length; ++i) {
+			var sub = lumps.GL_SSECT[subs[i]];
+			
+			for(var j = 0; j < sub.segNum; ++j) {
+				var tseg = lumps.GL_SEGS[sub.firstSegIdx + j];
+				if(tseg.linedefIdx !==  0xFFFF) {
+					var linedef = lumps.LINEDEFS[tseg.linedefIdx];
+					var v1 = lumps.VERTEXES[linedef.v1Idx];
+					var v2 = lumps.VERTEXES[linedef.v2Idx];
+					var side = this.segSide(linedef, {x: posX, y: posY});
+					var otherSector = linedefSector(lumps, linedef, side === 1);
+					
+					// If the adjacent sector is touched on the XZ plane and could be walked onto from the current pos:
+					if( !(!otherSector ||
+							otherSector.floorHeight > h + 30 ||
+							otherSector.ceilHeight < h + ph ||
+							otherSector.ceilHeight - otherSector.floorHeight < ph) &&
+						Geom.circleVsSeg(tmpCircle.init(posX, posY, rad), tmpSeg.init(v1.x, v1.y, v2.x, v2.y), out)) {
+							
+						if(otherSector && otherSector.floorHeight > floorHeight)
+							floorHeight = otherSector.floorHeight;
+						if(otherSector && otherSector.ceilHeight < ceilHeight)
+							ceilHeight = otherSector.ceilHeight;
+							
+					}
+				}
+			}
+		}
+
+		res.floorHeight = floorHeight;
+		res.ceilHeight = ceilHeight;
 	};
 	
 	
