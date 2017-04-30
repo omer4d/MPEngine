@@ -338,13 +338,12 @@ define(["Geom"], function(Geom) {
 		return flag;
 	};
 	
-	Level.prototype.findHeight = function(obj, ph, rad, res) {
+	Level.prototype.findHeight = function(posX, posY, h, ph, rad, res) {
 		var tmpCircle = new Geom.Circle(0, 0, 0);
 		var tmpSeg = new Geom.Seg(0, 0);
 		var out = new Geom.IntersectionTestResult();
 		
 		var lumps = this.lumps;
-		var posX = obj.pos.x, posY = obj.pos.y, h = obj.pos.z;
 		var subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
 			
 		var centerSub = this.findSector({x: posX, y: posY});

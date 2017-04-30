@@ -146,18 +146,9 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 		for(i = 0; i < this.dynamic.length; ++i) {
 			var ent = this.dynamic[i];
 			
-			var res = {};
-			this.level.findHeight(ent, 60, ent.rad, res);
-			
 			ent.pos.x += ent.vel.x * dt;
 			ent.pos.y += ent.vel.y * dt;
 			ent.pos.z += ent.vel.z * dt;
-			
-			if(ent.pos.z + 60 > res.ceilHeight) {
-				ent.pos.z = res.ceilHeight - 60;
-				ent.vel.z = 0;
-			}
-			
 			
 			var oldInactiveFrames = ent.inactiveFrames;
 			var dx = ent.pos.x - ent.oldPos.x;
@@ -364,6 +355,13 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 
 		var grounded = false;
 		var res = {};
+		
+		level.findHeight(p.oldPos.x, p.oldPos.y, p.oldPos.z, playerHeight, p.rad, res);
+		
+		if(p.pos.z + 60 > res.ceilHeight) {
+			p.pos.z = res.ceilHeight - 60;
+			p.vel.z = 0;
+		}
 		
 		if(level.vsCircle(p, playerHeight, p.rad, res) && (p.flags & g.F_SOLID)) {
 			p.pos.x += res.mtx;
