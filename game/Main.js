@@ -101,7 +101,9 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 	}
 	
 
-	
+	window.dumpSectorSolids = function() {
+		gameState.dumpSectorSolids();
+	}
 	
 	
 	
@@ -241,7 +243,7 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		if(Math.abs(player.vel.y) < 5)
 			bob += xzSpeed / 2500;
 		
-		var cameraMatrix =  m4.translation(player.pos.x, player.pos.y + 40 + Math.cos(bob)*2, player.pos.z);
+		var cameraMatrix =  m4.translation(player.pos.x, player.pos.y + 40 + Math.cos(bob)*3, player.pos.z);
 		cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.y);
 		cameraMatrix = m4.zRotate(cameraMatrix, (vp - catchup) / -7000);
 		cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);

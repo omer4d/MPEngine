@@ -68,14 +68,15 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 		return player;
 	};
 	
-	GameState.prototype.nonemptySubsecs = function() {
-		var out = {};
+	GameState.prototype.dumpSectorSolids = function() {
+		console.log("Static sector solids:");
 		var keys = Object.keys(this.sectorSolids);
+		
 		for(var i = 0; i < keys.length; ++i) {
 			if(this.sectorSolids[keys[i]].length > 0)
-				out[keys[i]] = this.sectorSolids[keys[i]];
+				console.log(this.sectorSolids[keys[i]]);
 		}
-		return out;
+		console.log("--------------------------------------");
 	};
 	
 		
@@ -164,13 +165,14 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 			
 			if(oldInactiveFrames > 10 && !ent.inactiveFrames) {
 				removeSolidEntity(this.level, this.sectorSolids, ent);
-				//console.log("Started moving!", this.nonemptySubsecs());
+				console.log("Started moving!");
+				this.dumpSectorSolids();
 			}
 			
 			if(ent.inactiveFrames === 10) {
 				addSolidEntity(this.level, this.sectorSolids, ent);
-				//console.log("Stopped moving!", this.nonemptySubsecs());
-				//console.log("-------------------------------");
+				console.log("Stopped moving!");
+				this.dumpSectorSolids();
 			}
 			
 			if(ent.inactiveFrames < 10) {
@@ -193,6 +195,7 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 						++collisionTests;
 						if(entVsEnt(dynSubsec[j], statSubsec[k])) {
 							entCollisionResponse(dynSubsec[j], statSubsec[k], 1);
+							console.log("colliding with static entity!");
 						}
 					}
 				}
@@ -360,16 +363,18 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 			var vnp = p.vel.x * res.nx + p.vel.z * res.nz;
 			p.vel.x -= vnp * res.nx;
 			p.vel.z -= vnp * res.nz;
-			console.log("colliding!");
 		}
 		
 		if(p.pos.y < res.floorHeight) {
-			if(p.vel.y <= 0)
-				p.pos.y += (res.floorHeight - p.pos.y) * 0.3;
-			else
-				p.pos.y = res.floorHeight;
+			//if(p.vel.y <= 0)
+				p.pos.y += (res.floorHeight - p.pos.y) * 0.2;
 			
-			p.vel.y = 0;
+			//else
+				//p.pos.y = res.floorHeight;
+			
+			if(p.vel.y < 0)
+				p.vel.y = 0;
+			
 			grounded = true;
 		}
 		
