@@ -215,13 +215,13 @@ define(["Geom"], function(Geom) {
 		return idx === 0xFFFF ? null : lumps.SECTORS[lumps.SIDEDEFS[idx].sectorIdx];
 	}
 
-	Level.prototype.vsCircle = function(x, y, h, ph, rad, res) {
+	Level.prototype.vsCircle = function(obj, ph, rad, res) {
 		var tmpCircle = new Geom.Circle(0, 0, 0);
 		var tmpSeg = new Geom.Seg(0, 0);
 		var out = new Geom.IntersectionTestResult();
 		
 		var lumps = this.lumps;
-		var posX = x, posY = y;
+		var posX = obj.pos.x, posY = obj.pos.y, h = obj.pos.z;
 		var subs = this.findCircleSubsectors({x: posX, y: posY}, rad);
 		var flag = false;
 		var nx = 0;
@@ -321,8 +321,8 @@ define(["Geom"], function(Geom) {
 		}
 
 		var nlen = Math.sqrt(nx*nx + ny*ny);
-		res.mtx = posX - x;
-		res.mty = posY - y;
+		res.mtx = posX - obj.pos.x;
+		res.mty = posY - obj.pos.y;
 		res.nx = (nx / nlen) || 0;
 		res.ny = (ny / nlen) || 0;
 		res.floorHeight = floorHeight;
@@ -379,13 +379,17 @@ define(["Geom"], function(Geom) {
 		}
 		
 		if(tmin < tmax) {
+
 			var ldmax = lumps.LINEDEFS[maxSeg.linedefIdx];
 			var sec = lumps.SECTORS[lumps.SIDEDEFS[maxSeg.side === 0 ? ldmax.posSidedefIdx : ldmax.negSidedefIdx].sectorIdx];
+			
 			return handleRayEntry(ray, tmin, sec) || handleRayExit(ray, tmax, sec, oneSidedLinedef(ldmax));
 		}else if(tmin === tmax) {
+			
 			var ldmax = lumps.LINEDEFS[maxSeg.linedefIdx];
 			var sec = lumps.SECTORS[lumps.SIDEDEFS[maxSeg.side === 0 ? ldmax.posSidedefIdx : ldmax.negSidedefIdx].sectorIdx];
 			var raySide = this.pointSegDist(ldmax, ray2d.origin()) < 0 ? 1 : 0; // 1 means left side
+			
 			if(raySide === maxSeg.side)
 				return handleRayEntry(ray, tmin, sec);
 			else
@@ -393,7 +397,6 @@ define(["Geom"], function(Geom) {
 		}else
 			return null;
 	}
-	
 	
 	Level.prototype.raycastHelper = function(idx, ray, callback) {
 		var lumps = this.lumps;
@@ -404,19 +407,6 @@ define(["Geom"], function(Geom) {
 			var sub = lumps.GL_SSECT[idx & ~LEAF_FLAG];
 			return this.rayVsSubsec(sub, ray);
 		}else {
-			/*
-			var node = lumps.GL_NODES[idx];
-			var nx = -node.dy;
-			var ny = node.dx;
-			var dx = ray2d.x - node.x;
-			var dy = ray2d.y - node.y;
-			
-			if(nx*dx+ny*dy >= 0)
-				return this.raycastHelper(node.leftChildIdx, ray, callback) || this.raycastHelper(node.rightChildIdx, ray, callback);
-			else
-				return this.raycastHelper(node.rightChildIdx, ray, callback) || this.raycastHelper(node.leftChildIdx, ray, callback);*/
-			
-			
 			var node = lumps.GL_NODES[idx];
 			var leftBox = new Geom.AABB(node.leftAABB[2], node.leftAABB[1], node.leftAABB[3], node.leftAABB[0]); 
 			var rightBox = new Geom.AABB(node.rightAABB[2], node.rightAABB[1], node.rightAABB[3], node.rightAABB[0]); 
@@ -440,63 +430,10 @@ define(["Geom"], function(Geom) {
 				return this.raycastHelper(node.rightChildIdx, ray, callback);
 			else
 				return null;
-			
-			
-			
 		}
 	};
 	
-	function between(x, min, max) {
-		return x + 0.001 >= min && x - 0.001 <= max;
-	}
-	
-	Level.prototype.raycast = function(ray, callback) {
-		/*
-		var res = null;
-		var tmin = INF;
-		var ray2d = new Geom.Ray(ray.x, ray.z, ray.dirX, ray.dirZ);
-		
-		for(var i = 0; i < this.lumps.LINEDEFS.length; ++i) {
-			var linedef = this.lumps.LINEDEFS[i];
-			var v1 = this.lumps.VERTEXES[linedef.v1Idx];
-			var v2 = this.lumps.VERTEXES[linedef.v2Idx];
-			var out = {};
-			var f = Geom.rayVsSeg(ray2d, {x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y}, out);
-			
-			if(f && out.t >= 0 && out.t < tmin) {
-				var negSec = this.findLinedefSector(linedef, true);
-				var posSec = this.findLinedefSector(linedef, false);
-				var miny = Math.max(posSec ? posSec.floorHeight : -INF, negSec ? negSec.floorHeight : -INF);
-				var maxy = Math.min(posSec ? posSec.ceilHeight : INF, negSec ? negSec.ceilHeight : INF);
-				var py =  ray.y + ray.dirY * out.t;
-
-				if(!between(py, miny, maxy) || oneSidedLinedef(linedef)) {
-					var dist = this.pointSegDist(linedef, {x: ray.x, y: ray.z});
-					var sec = dist < 0 ? posSec : negSec;
-					
-					if(sec) {
-						if(py > sec.ceilHeight - 2) {
-							var t = (sec.ceilHeight - ray.y) / ray.dirY;
-							if(t >= 0)
-								out.t = t;
-						}
-						
-						//else if(py < sec.floorHeight + 1) {
-						//	var t = (sec.floorHeight - ray.y) / ray.dirY;
-						//	if(t >= 0)
-						//		out.t = t;
-						//}
-						
-						tmin = out.t;
-						res = out;
-					}
-				}
-			}
-		}
-	
-		return res;*/
-		
-		
+	Level.prototype.raycast = function(ray, callback) {		
 		return this.raycastHelper(this.lumps.GL_NODES.length - 1, ray, callback);
 	};
 	

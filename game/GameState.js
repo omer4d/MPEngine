@@ -356,7 +356,7 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 		var grounded = false;
 		var res = {};
 		
-		if(level.vsCircle(p.pos.x, p.pos.y, p.pos.z, playerHeight, p.rad, res) && (p.flags & g.F_SOLID)) {
+		if(level.vsCircle(p, playerHeight, p.rad, res) && (p.flags & g.F_SOLID)) {
 			p.pos.x += res.mtx;
 			p.pos.y += res.mty;
 			var vnp = p.vel.x * res.nx + p.vel.y * res.ny;
