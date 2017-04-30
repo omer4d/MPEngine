@@ -213,42 +213,7 @@ define(["ConVars", "Matrix4", "GLUtil", "DynamicMesh"], function(cvars, m4, GLUt
 			sprites.begin();
 		};
 		
-		this.pushSprite = function(reg, x, y, z) {
-			if(reg.textureHandle != lastSpriteTex) {
-				sprites.flush(spriteShaderLocations);
-				sprites.begin();
-				gl.bindTexture(gl.TEXTURE_2D, reg.textureHandle);
-			}
-			
-			sprites.coord(x, y, z);
-			sprites.texCoord(reg.u0, reg.v0);
-			sprites.color(255, 255, 255);
-			
-			sprites.coord(x, y + reg.height, z);
-			sprites.texCoord(reg.u0, reg.v1);
-			sprites.color(255, 255, 255);
-			
-			sprites.coord(x + reg.width, y + reg.height, z);
-			sprites.texCoord(reg.u1, reg.v1);
-			sprites.color(255, 255, 255);
-			
-			
-			sprites.coord(x + reg.width, y + reg.height, z);
-			sprites.texCoord(reg.u1, reg.v1);
-			sprites.color(255, 255, 255);
-			
-			sprites.coord(x + reg.width, y, z);
-			sprites.texCoord(reg.u1, reg.v0);
-			sprites.color(255, 255, 255);
-			
-			sprites.coord(x, y, z);
-			sprites.texCoord(reg.u0, reg.v0);
-			sprites.color(255, 255, 255);
-			
-			lastSpriteTex = reg.textureHandle;
-		};
-		
-		this.pushSprite2 = function(reg, x, y, z, nx, nz, light) {
+		this.pushSprite2 = function(reg, x, y, z, nx, ny, light) {
 			if(reg.textureHandle != lastSpriteTex) {
 				sprites.flush(spriteShaderLocations);
 				sprites.begin();
@@ -256,30 +221,30 @@ define(["ConVars", "Matrix4", "GLUtil", "DynamicMesh"], function(cvars, m4, GLUt
 			}
 			
 			nx *= reg.width / 2;
-			nz *= reg.width / 2;
+			ny *= reg.width / 2;
 			
-			sprites.coord(x - nx, y, z - nz);
+			sprites.coord(x - nx, z, y - ny);
 			sprites.texCoord(reg.u0, reg.v0);
 			sprites.color(light, light, light);
 			
-			sprites.coord(x - nx, y + reg.height, z - nz);
+			sprites.coord(x - nx, z + reg.height, y - ny);
 			sprites.texCoord(reg.u0, reg.v1);
 			sprites.color(light, light, light);
 			
-			sprites.coord(x + nx, y + reg.height, z + nz);
+			sprites.coord(x + nx, z + reg.height, y + ny);
 			sprites.texCoord(reg.u1, reg.v1);
 			sprites.color(light, light, light);
 			
 			
-			sprites.coord(x + nx, y + reg.height, z + nz);
+			sprites.coord(x + nx, z + reg.height, y + ny);
 			sprites.texCoord(reg.u1, reg.v1);
 			sprites.color(light, light, light);
 			
-			sprites.coord(x + nx, y, z + nz);
+			sprites.coord(x + nx, z, y + ny);
 			sprites.texCoord(reg.u1, reg.v0);
 			sprites.color(light, light, light);
 			
-			sprites.coord(x - nx, y, z - nz);
+			sprites.coord(x - nx, z, y - ny);
 			sprites.texCoord(reg.u0, reg.v0);
 			sprites.color(light, light, light);
 			

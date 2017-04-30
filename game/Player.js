@@ -18,11 +18,12 @@ define(["GameConsts", "Vector3"], function(g, Vector3) {
 		this.bufferedJumps = 0;
 		
 		this.lastHitX = 0;
+		this.lastHitY = 0;
 		this.lastHitZ = 0;
 	}
 	
-	Player.prototype.xzSpeed = function() {
-		return Math.sqrt(this.vel.x * this.vel.x + this.vel.z * this.vel.z);
+	Player.prototype.xySpeed = function() {
+		return Math.sqrt(this.vel.x * this.vel.x + this.vel.y * this.vel.y);
 	};
 	
 	return Player;

@@ -14,6 +14,12 @@ define([], function() {
 		return this;
 	};
 	
+	Ray.prototype.origin = function() {
+		// This relies on duck-typing.
+		// We could pass the ray directly as a point, but calling Ray.origin instead makes the intent clear.
+		return this;
+	};
+	
 	function Seg(x1, y1, x2, y2) {
 		this.x1 = x1;
 		this.y1 = y1;

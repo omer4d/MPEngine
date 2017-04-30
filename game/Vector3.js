@@ -40,7 +40,7 @@ define([], function() {
 	};
 	
 	Vector3.prototype.xzLenSquare = function() {
-		return this.x*this.x + this.z*this.z;
+		return this.x*this.x + this.y*this.y;
 	};
 	
 	return Vector3;

@@ -33,7 +33,7 @@ define(["Geom"], function(Geom) {
 		
 		return {
 			x: (aabb[2] + aabb[3]) / 2,
-			z: (aabb[0] + aabb[1]) / 2,
+			y: (aabb[0] + aabb[1]) / 2,
 		};
 	};
 	
@@ -244,19 +244,32 @@ define(["Geom"], function(Geom) {
 						var side = this.segSide(linedef, {x: posX, y: posY});
 						var otherSector = linedefSector(lumps, linedef, side === 1);
 						
-						if( (!otherSector ||
-								otherSector.floorHeight > h + 30 ||
-								otherSector.ceilHeight < h + ph ||
-								otherSector.ceilHeight - otherSector.floorHeight < ph) &&
+						if( (!otherSector || 						// trying to walk out of the map
+								otherSector.floorHeight > h + 30 || // other sector floor higher than the step height
+								otherSector.ceilHeight < h + ph ||	// other sector ceiling lower than cylinder top
+								otherSector.ceilHeight - otherSector.floorHeight < ph) && // other sector too narrow
 							Geom.circleVsSeg(tmpCircle.init(posX, posY, rad), tmpSeg.init(v1.x, v1.y, v2.x, v2.y), out)) {
 							
-								
-							mtx += out.mtx;
-							mty += out.mty;
-							nx += out.nx;
-							ny += out.ny;
-							++count;
-							flag = true;
+							//if(!(otherSector && (otherSector.ceilHeight < h + ph) && otherSector === linedefSector(lumps, linedef, side !== 1))) {
+							
+							var foo = false;
+							if(otherSector && otherSector.ceilHeight < h + ph) {
+								//var dy = h + ph - otherSector.ceilHeight;
+								//foo = dy*dy < (out.mtx*out.mtx + out.mty * out.mty);
+								//console.log("WEW!");
+							}
+							
+							if(!foo) {
+								mtx += out.mtx;
+								mty += out.mty;
+								nx += out.nx;
+								ny += out.ny;
+								++count;
+								flag = true;
+							}
+							
+							
+							//}
 						}
 					}
 				}
@@ -309,9 +322,9 @@ define(["Geom"], function(Geom) {
 
 		var nlen = Math.sqrt(nx*nx + ny*ny);
 		res.mtx = posX - x;
-		res.mtz = posY - y;
+		res.mty = posY - y;
 		res.nx = (nx / nlen) || 0;
-		res.nz = (ny / nlen) || 0;
+		res.ny = (ny / nlen) || 0;
 		res.floorHeight = floorHeight;
 		res.ceilHeight = ceilHeight;
 		
@@ -326,25 +339,25 @@ define(["Geom"], function(Geom) {
 	
 	
 	function handleRayEntry(ray, t, sec) {
-		var py = ray.y + ray.dirY * t;
-		if(py < sec.floorHeight || py > sec.ceilHeight)
+		var pz = ray.z + ray.dirZ * t;
+		if(pz < sec.floorHeight || pz > sec.ceilHeight)
 			return {t: t};
 		return null;
 	}
 	
 	function handleRayExit(ray, t, sec, oneSided) {
-		var py = ray.y + ray.dirY * t;
-		if(py < sec.floorHeight)
-			return {t: (sec.floorHeight - ray.y) / ray.dirY};
-		else if(py > sec.ceilHeight)
-			return {t: (sec.ceilHeight - ray.y) / ray.dirY};
+		var pz = ray.z + ray.dirZ * t;
+		if(pz < sec.floorHeight)
+			return {t: (sec.floorHeight - ray.z) / ray.dirZ};
+		else if(pz > sec.ceilHeight)
+			return {t: (sec.ceilHeight - ray.z) / ray.dirZ};
 		else
 			return oneSided ? {t: t} : null;
 	}
 	
 	Level.prototype.rayVsSubsec = function(sub, ray) {
 		var lumps = this.lumps;
-		var ray2d = new Geom.Ray(ray.x, ray.z, ray.dirX, ray.dirZ);
+		var ray2d = new Geom.Ray(ray.x, ray.y, ray.dirX, ray.dirY);
 		var tmin = INF, tmax = -INF;
 		var minSeg, maxSeg;
 		var tmp = {};
@@ -372,7 +385,7 @@ define(["Geom"], function(Geom) {
 		}else if(tmin === tmax) {
 			var ldmax = lumps.LINEDEFS[maxSeg.linedefIdx];
 			var sec = lumps.SECTORS[lumps.SIDEDEFS[maxSeg.side === 0 ? ldmax.posSidedefIdx : ldmax.negSidedefIdx].sectorIdx];
-			var raySide = this.pointSegDist(ldmax, {x: ray.x, y: ray.z}) < 0 ? 1 : 0; // 1 means left side
+			var raySide = this.pointSegDist(ldmax, ray2d.origin()) < 0 ? 1 : 0; // 1 means left side
 			if(raySide === maxSeg.side)
 				return handleRayEntry(ray, tmin, sec);
 			else
@@ -385,7 +398,7 @@ define(["Geom"], function(Geom) {
 	Level.prototype.raycastHelper = function(idx, ray, callback) {
 		var lumps = this.lumps;
 		var LEAF_FLAG = 1 << 15;
-		var ray2d = new Geom.Ray(ray.x, ray.z, ray.dirX, ray.dirZ);
+		var ray2d = new Geom.Ray(ray.x, ray.y, ray.dirX, ray.dirY);
 		
 		if(idx & LEAF_FLAG) {
 			var sub = lumps.GL_SSECT[idx & ~LEAF_FLAG];

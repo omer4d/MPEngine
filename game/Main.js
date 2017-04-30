@@ -14,39 +14,39 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		var msens = 1/250;
 		
 		p.oldMoveDir.copy(p.moveDir);
-		p.oldLookDir.set(Math.cos(p.angles.y), 0, Math.sin(p.angles.y));
+		p.oldLookDir.set(Math.cos(p.angles.z), Math.sin(p.angles.z), 0);
 		
 		p.moveDir.x = 0;
 		p.moveDir.y = 0;
 		p.moveDir.z = 0;
 		
 		if(Input.keyPressed("ArrowLeft"))
-			p.angles.y -= turnSpeed * dt;
+			p.angles.z -= turnSpeed * dt;
 		if(Input.keyPressed("ArrowRight"))
-			p.angles.y += turnSpeed * dt;
+			p.angles.z += turnSpeed * dt;
 		if(Input.keyPressed("ArrowUp"))
 			p.angles.x -= turnSpeed * dt;
 		if(Input.keyPressed("ArrowDown"))
 			p.angles.x += turnSpeed * dt;
 		
 		if(Input.keyPressed("w")) {
-			p.moveDir.x += Math.cos(p.angles.y);
-			p.moveDir.z += Math.sin(p.angles.y);
+			p.moveDir.x += Math.cos(p.angles.z);
+			p.moveDir.y += Math.sin(p.angles.z);
 		}
 		
 		if(Input.keyPressed("s")) {
-			p.moveDir.x += -Math.cos(p.angles.y);
-			p.moveDir.z += -Math.sin(p.angles.y);
+			p.moveDir.x += -Math.cos(p.angles.z);
+			p.moveDir.y += -Math.sin(p.angles.z);
 		}
 		
 		if(Input.keyPressed("d")) {
-			p.moveDir.x += -Math.sin(p.angles.y);
-			p.moveDir.z += Math.cos(p.angles.y);
+			p.moveDir.x += -Math.sin(p.angles.z);
+			p.moveDir.y += Math.cos(p.angles.z);
 		}
 			
 		if(Input.keyPressed("a")) {
-			p.moveDir.x += Math.sin(p.angles.y);
-			p.moveDir.z += -Math.cos(p.angles.y);
+			p.moveDir.x += Math.sin(p.angles.z);
+			p.moveDir.y += -Math.cos(p.angles.z);
 		}
 		
 		if(Input.keyJustPressed("Spacebar") || Input.keyJustPressed(" ")) {
@@ -58,7 +58,7 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		}
 		
 		if(Input.mouseLocked()) {
-			p.angles.y += Input.mouseDeltaX() * msens;
+			p.angles.z += Input.mouseDeltaX() * msens;
 			p.angles.x = Math.max(Math.min(p.angles.x + Input.mouseDeltaY() * msens, Math.PI / 2), -Math.PI / 2);
 			if(Input.buttonJustPressed(1)) {
 				p.commands.push({type: "shoot"});
@@ -71,33 +71,6 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 			p.flags &= ~(g.F_SOLID);
 		else
 			p.flags |= g.F_SOLID;
-		
-		//var accel = grounded ? groundAccel : airAccel;
-		
-		/*
-		moveDir.normalize();
-		
-		var vp = p.vel.x * moveDir.x + p.vel.z * moveDir.z;
-		if(vp + accel * dt > 320)
-			accel = (320 - vp) / dt;
-		p.vel.x += moveDir.x * accel * dt;
-		p.vel.z += moveDir.z * accel * dt;*/
-		
-		
-		/*
-		var speed = Math.sqrt(p.vel.x * p.vel.x + p.vel.z * p.vel.z);
-		moveDir.x *= accel * dt;
-		moveDir.z *= accel * dt;
-		if(speed > 0) {
-			var vdirX = p.vel.x / speed;
-			var vdirZ = p.vel.z / speed;
-			var dat = Math.max(speed + vdirX*moveDir.x + vdirZ*moveDir.z - 320, 0);
-			moveDir.x -= vdirX * dat;
-			moveDir.z -= vdirZ * dat;
-		}
-		
-		p.vel.x += moveDir.x;
-		p.vel.z += moveDir.z;*/
 	}
 	
 
@@ -192,8 +165,8 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 					things.push({
 						reg: reg,
 						x: thingSpawn.x,
-						y: floorHeight,
-						z: thingSpawn.y,
+						y: thingSpawn.y,
+						z: floorHeight,
 						light: sec.light,
 					});
 				}
@@ -223,11 +196,11 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		gameState.logic(dt);
 		//movePlayer(player, level, dt);
 		
-		document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(player.xzSpeed());
+		document.getElementById("speedCounter").textContent = "Speed: " + Math.floor(player.xySpeed());
 		//" --- Pos: " + Math.floor(player.pos.x) + ", " + Math.floor(player.pos.z);
 		
-		var xzSpeed = player.xzSpeed();
-		var targetFov = 3.14/2*0.8+xzSpeed/9000;
+		var xySpeed = player.xySpeed();
+		var targetFov = 3.14/2*0.8+xySpeed/9000;
 		fov += (targetFov - fov) * 0.06;
 		
 		var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight * (1.2);
@@ -235,16 +208,16 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		var zFar = 10000;
 		var projectionMatrix = m4.perspective(fov, aspect, zNear, zFar);
 
-		var lookX = Math.cos(player.angles.y);
-		var lookZ = Math.sin(player.angles.y);
-		var vp = (-lookZ*player.vel.x+lookX*player.vel.z);
+		var lookX = Math.cos(player.angles.z);
+		var lookY = Math.sin(player.angles.z);
+		var vp = (-lookY*player.vel.x+lookX*player.vel.y);
 		catchup += (vp - catchup) * 0.03;
 		
-		if(Math.abs(player.vel.y) < 5)
-			bob += xzSpeed / 2500;
+		if(Math.abs(player.vel.z) < 5)
+			bob += xySpeed / 2500;
 		
-		var cameraMatrix =  m4.translation(player.pos.x, player.pos.y + 40 + Math.cos(bob)*3, player.pos.z);
-		cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.y);
+		var cameraMatrix =  m4.translation(player.pos.x, player.pos.z + 40 + Math.cos(bob)*3, player.pos.y);
+		cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.z);
 		cameraMatrix = m4.zRotate(cameraMatrix, (vp - catchup) / -7000);
 		cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
 		
@@ -256,8 +229,8 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		
 		//renderer.pushSprite(atlas.get("bossg1"), 1032, 0, -3200);
 		
-		var nx = -Math.sin(player.angles.y);
-		var ny = Math.cos(player.angles.y);
+		var nx = -Math.sin(player.angles.z);
+		var ny = Math.cos(player.angles.z);
 		
 		renderer.beginSprites();
 		for(var i = 0; i < things.length; ++i) {
@@ -267,7 +240,7 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		}
 		
 		var rrr = atlas.get("bal1a0");
-		renderer.pushSprite2(rrr, player.lastHitX, player.lastHitY - rrr.height/2, player.lastHitZ, nx, ny, 255);
+		renderer.pushSprite2(rrr, player.lastHitX, player.lastHitY, player.lastHitZ - rrr.height/2, nx, ny, 255);
 		
 		renderer.endSprites();
 		
