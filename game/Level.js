@@ -405,34 +405,37 @@ define(["Geom"], function(Geom) {
 		var sub = lumps.GL_SSECT[subIdx];
 		var ray2d = new Geom.Ray(ray.x, ray.y, ray.dirX, ray.dirY);
 		var tmin = INF, tmax = -INF;
-		var minSeg, maxSeg;
+		var minSeg, maxSeg, realSeg;
 		var flag = false;
 
 		for(var i = 0; i < sub.segNum; ++i) {
 			var seg = lumps.GL_SEGS[sub.firstSegIdx + i];
 
-			if(seg.linedefIdx != 0xFFFF && Geom.rayVsSeg(ray2d, this.translateGlSeg(seg), tmp) && tmp.t >= 0) {
-				if(tmp.t < tmin) {
-					tmin = tmp.t;
-					minSeg = seg;
-				}
+			if(seg.linedefIdx != 0xFFFF) {
+				realSeg = seg;
 
-				if(tmp.t > tmax) {
-					tmax = tmp.t;
-					maxSeg = seg;
+				if(Geom.rayVsSeg(ray2d, this.translateGlSeg(seg), tmp) && tmp.t >= 0) {
+					if(tmp.t < tmin) {
+						tmin = tmp.t;
+						minSeg = seg;
+					}
+
+					if(tmp.t > tmax) {
+						tmax = tmp.t;
+						maxSeg = seg;
+					}
 				}
 			}
 		}
 
 		if(tmin < tmax) {
 			var ldmax = lumps.LINEDEFS[maxSeg.linedefIdx];
-			var sec = lumps.SECTORS[lumps.SIDEDEFS[maxSeg.side === 0 ? ldmax.posSidedefIdx : ldmax.negSidedefIdx].sectorIdx];
+			var sec = this.findSegSector(maxSeg);
 			flag = flag || handleRayEntry(ray, tmin, sec, tmp);
 			flag = flag || handleRayExit(ray, tmax, sec, oneSidedLinedef(ldmax), tmp);
 		}else if(tmin === tmax) {
-
 			var ldmax = lumps.LINEDEFS[maxSeg.linedefIdx];
-			var sec = lumps.SECTORS[lumps.SIDEDEFS[maxSeg.side === 0 ? ldmax.posSidedefIdx : ldmax.negSidedefIdx].sectorIdx];
+			var sec = this.findSegSector(maxSeg);
 			var raySide = this.pointSegDist(ldmax, ray2d.origin()) < 0 ? 1 : 0; // 1 means left side
 
 			if(raySide === maxSeg.side)
@@ -440,7 +443,8 @@ define(["Geom"], function(Geom) {
 			else
 				flag = flag || handleRayExit(ray, tmax, sec, oneSidedLinedef(ldmax), tmp);
 		}else {
-			tmp.t = INF;
+			var sec = this.findSegSector(realSeg);
+			tmp.t = ray.dirZ < 0 ? (sec.floorHeight - ray.z) / ray.dirZ : (sec.ceilHeight - ray.z) / ray.dirZ;
 		}
 
 		return callback(ray, subIdx, tmp) || flag;

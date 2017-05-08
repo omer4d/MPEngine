@@ -115,18 +115,20 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 						for(var i = 0; i < solids.length; ++i) {
 							var circle = new Geom.Circle(solids[i].pos.x, solids[i].pos.y, solids[i].rad);
 
-							if(Geom.rayVsCircle(ray, circle, tmp) && tmp.t < t) {
+							if(Geom.rayVsCircle(ray, circle, tmp) && tmp.t >= 0 && tmp.t < t) {
 								f = true;
 								t = tmp.t;
 							}
 
-							//console.log(tmp.t, hitData.t);
+							console.log(subIdx, tmp.t, hitData.t);
 						}
 					}
-					//hitData.t = t;
+					hitData.t = t;
 
-					return false;
+					return f;
 				});
+
+				console.log("------------------------");
 
 				if(res) {
 					player.lastHitX = ray.x + ray.dirX * res.t * 0.95;
