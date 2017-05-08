@@ -1,4 +1,4 @@
-define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp", "Player"], function(g, Vector3, m4, Level, thingTable, StaticProp, Player) {
+define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp", "Player"], function(g, Geom, Vector3, m4, Level, thingTable, StaticProp, Player) {
 	function GameState(level) {
 		this.level = level;
 
@@ -83,6 +83,7 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 	GameState.prototype.handlePlayerCommands = function(player) {
 		//for(var i = 0; i < player.commands.length; ++i) {
 			//var cmd = player.commands[i];
+			var self = this;
 
 			//if(cmd.type === "shoot") {
 				var cameraMatrix =  m4.translation(0, 0, 0);
@@ -104,9 +105,26 @@ define(["GameConsts", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp",
 					dirZ: rayDir[1]
 				};
 
-				var res = this.level.raycast(ray, function(hit, sectorIdx, hitData) {
-					//if(hit)
-						//console.log("HIT!");
+				var res = this.level.raycast(ray, function(ray, subIdx, hitData) {
+					var solids = self.sectorSolids[subIdx];
+					var t = hitData.t, f = false;
+
+					if(solids) {
+						var tmp = {};
+
+						for(var i = 0; i < solids.length; ++i) {
+							var circle = new Geom.Circle(solids[i].pos.x, solids[i].pos.y, solids[i].rad);
+
+							if(Geom.rayVsCircle(ray, circle, tmp) && tmp.t < t) {
+								f = true;
+								t = tmp.t;
+							}
+
+							//console.log(tmp.t, hitData.t);
+						}
+					}
+					//hitData.t = t;
+
 					return false;
 				});
 
