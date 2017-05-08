@@ -250,27 +250,14 @@ define(["Geom"], function(Geom) {
 								otherSector.ceilHeight - otherSector.floorHeight < ph) && // other sector too narrow
 							Geom.circleVsSeg(tmpCircle.init(posX, posY, rad), tmpSeg.init(v1.x, v1.y, v2.x, v2.y), out)) {
 							
-							//if(!(otherSector && (otherSector.ceilHeight < h + ph) && otherSector === linedefSector(lumps, linedef, side !== 1))) {
+							var len = Math.sqrt(out.nx*out.nx + out.ny*out.ny);
 							
-							var foo = false;
-							if(otherSector && otherSector.ceilHeight < h + ph) {
-								
-								//var dy = h + ph - otherSector.ceilHeight;
-								//foo = dy*dy < (out.mtx*out.mtx + out.mty * out.mty);
-								//console.log("WEW!");
-							}
-							
-							if(!foo) {
-								mtx += out.mtx;
-								mty += out.mty;
-								nx += out.nx;
-								ny += out.ny;
-								++count;
-								flag = true;
-							}
-							
-							
-							//}
+							mtx += out.mtx;
+							mty += out.mty;
+							nx += out.nx / len;
+							ny += out.ny / len;
+							++count;
+							flag = true;
 						}
 					}
 				}
