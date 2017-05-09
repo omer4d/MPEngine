@@ -1,4 +1,4 @@
-require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable", "GameState"], function(g, Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable, GameState) {
+require(["GameConsts", "ConVars", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", "GLUtil", "Renderer", "Vector3", "ResourceManager", "DynamicMesh", "Loaders", "ThingTable", "GameState"], function(g, cvars, Wad, m4, Mesh, Level, LevelMesh, Input, GLUtil, Renderer, Vector3, ResourceManager, DynamicMesh, Loaders, thingTable, GameState) {
 	var GRID_TEXTURES = false;
 	//var WAD_NAME = "/zaza2.wad";
 	var WAD_NAME = "/data/map04.wad";
@@ -78,6 +78,7 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		gameState.dumpSectorSolids();
 	}
 
+	window.cvars = cvars;
 
 
 	var frameCount = 0;
@@ -130,6 +131,7 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 
 	resMan.begin();
 	resMan.add("debug_grid", "data/grid.png");
+	resMan.add("debug_solid", "data/bsolid.png");
 	resMan.add("atlas", "data/sprites/sprites.atlas");
 	resMan.add("%ss%", "data/sprites/sprites0.png");
 	resMan.add("%current_level%", WAD_NAME);
@@ -167,6 +169,7 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 						x: thingSpawn.x,
 						y: thingSpawn.y,
 						z: floorHeight,
+						rad: thing.rad,
 						light: sec.light,
 					});
 				}
@@ -233,17 +236,30 @@ require(["GameConsts", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh", "Input", 
 		var ny = Math.cos(player.angles.z);
 
 		renderer.beginSprites();
-		for(var i = 0; i < things.length; ++i) {
 
-			renderer.pushSprite2(things[i].reg, things[i].x, things[i].y, things[i].z, nx, ny, things[i].light);
-			//renderer.pushSprite2(things[i].reg, things[i].x, things[i].y, things[i].z, ny, -nx, things[i].light);
+		if(cvars.r_show_sprites)
+			for(var i = 0; i < things.length; ++i) {
+				renderer.pushSprite2(things[i].reg, things[i].x, things[i].y, things[i].z, nx, ny, things[i].light);
+				//renderer.pushSprite2(things[i].reg, things[i].x, things[i].y, things[i].z, ny, -nx, things[i].light);
+			}
 
-		}
 
 		var rrr = atlas.get("bal1a0");
 		renderer.pushSprite2(rrr, player.lastHitX, player.lastHitY, player.lastHitZ - rrr.height/2, nx, ny, 255);
 
 		renderer.endSprites();
+
+		if(cvars.debug_show_solids) {
+			gl.cullFace(gl.BACK);
+			gl.enable(gl.CULL_FACE);
+			renderer.beginSprites();
+			for(var i = 0; i < things.length; ++i) {
+				renderer.pushCylinder(resMan.get("debug_solid").handle, things[i].x, things[i].y, things[i].z, things[i].rad, 20, things[i].light);
+			}
+			renderer.endSprites();
+			gl.disable(gl.CULL_FACE);
+		}
+
 
 		firstTime = false;
 

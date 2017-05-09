@@ -79,6 +79,33 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 		console.log("--------------------------------------");
 	};
 
+	function rayVsCylinder(ray, x, y, z, r, h, res) {
+		var circle = new Geom.Circle(x, y, r);
+
+		if(ray.x === 0 && ray.y === 0 && ray.z !== 0) {
+			return false;
+		}else if(Geom.rayVsCircle(ray, circle, res)) {
+			var z1 = ray.z + ray.dirZ * res.tmin;
+			var z2 = ray.z + ray.dirZ * res.tmax;
+
+			if(z1 < z && z2 < z || z1 > z + h && z2 > z + h)
+				return false;
+			else {
+				if(z1 < z)
+					res.tmin = (z - ray.z) / ray.dirZ;
+				else if(z1 > z + h)
+					res.tmin = (z + h - ray.z) / ray.dirZ;
+				if(z2 < z)
+					res.tmax = (z - ray.z) / ray.dirZ;
+				else if(z2 > z + h)
+					res.tmax = (z + h - ray.z) / ray.dirZ;
+
+				return res.tmin > 0 || res.tmax > 0;
+			}
+		}
+
+		return false;
+	}
 
 	GameState.prototype.handlePlayerCommands = function(player) {
 		//for(var i = 0; i < player.commands.length; ++i) {
@@ -113,14 +140,33 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 						var tmp = {};
 
 						for(var i = 0; i < solids.length; ++i) {
+
+
+							/*
 							var circle = new Geom.Circle(solids[i].pos.x, solids[i].pos.y, solids[i].rad);
 
-							if(Geom.rayVsCircle(ray, circle, tmp) && tmp.t >= 0 && tmp.t < t) {
+							if(Geom.rayVsCircle(ray, circle, tmp) && tmp.tmin >= 0 && tmp.tmin < t) {
+								var z1 = ray.z + ray.dirZ * tmp.tmin;
+								var z2 = ray.z + ray.dirZ * tmp.tmax;
+
+								if(isBetween(z1, solids[i].pos.z, solids[i].pos.z + 40) || isBetween(z2, solids[i].pos.z, solids[i].pos.z + 40)) {
+									f = true;
+									t = tmp.tmin;
+								}
+							}*/
+
+							if(rayVsCylinder(ray, solids[i].pos.x, solids[i].pos.y, solids[i].pos.z,
+											solids[i].rad, 20, tmp)) {
 								f = true;
-								t = tmp.t;
+								t = tmp.tmin > 0 ? tmp.tmin : tmp.tmax;
 							}
 
-							console.log(subIdx, tmp.t, hitData.t);
+
+
+
+
+
+							//console.log(subIdx, tmp.t, hitData.t);
 						}
 					}
 					hitData.t = t;
@@ -128,12 +174,12 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 					return f;
 				});
 
-				console.log("------------------------");
+				//console.log("------------------------");
 
 				if(res) {
-					player.lastHitX = ray.x + ray.dirX * res.t * 0.95;
-					player.lastHitY = ray.y + ray.dirY * res.t * 0.95;
-					player.lastHitZ = ray.z + ray.dirZ * res.t * 0.95;
+					player.lastHitX = ray.x + ray.dirX * res.t;// * 0.95;
+					player.lastHitY = ray.y + ray.dirY * res.t;// * 0.95;
+					player.lastHitZ = ray.z + ray.dirZ * res.t;// * 0.95;
 				}else {
 					player.lastHitX = 0;
 					player.lastHitY = 0;
@@ -418,6 +464,10 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 		}
 
 		p.grounded = p.grounded || grounded;
+	}
+
+	function isBetween(x, min, max) {
+		return x >= min && x <= max;
 	}
 
 	function intervalsOverlap(min1, max1, min2, max2) {
