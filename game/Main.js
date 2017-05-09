@@ -11,7 +11,7 @@ require(["GameConsts", "ConVars", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh"
 	function controlPlayer(p, dt) {
 		var turnSpeed = 2;
 		var moveDir = new Vector3();
-		var msens = 1/250;
+		var msens = cvars.mouse_sens;
 
 		p.oldMoveDir.copy(p.moveDir);
 		p.oldLookDir.set(Math.cos(p.angles.z), Math.sin(p.angles.z), 0);
@@ -185,7 +185,7 @@ require(["GameConsts", "ConVars", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh"
 
 	var firstTime = true;
 	var catchup = 0;
-	var fov = 3.14/2*0.8;
+	var fov = cvars.v_fov / 180 * Math.PI;
 	var bob = 0;
 
 	function renderLoop() {
@@ -203,7 +203,7 @@ require(["GameConsts", "ConVars", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh"
 		//" --- Pos: " + Math.floor(player.pos.x) + ", " + Math.floor(player.pos.z);
 
 		var xySpeed = player.xySpeed();
-		var targetFov = 3.14/2*0.8+xySpeed/9000;
+		var targetFov = (cvars.v_fov / 180 * Math.PI) + (xySpeed / cvars.g_speed_limit * cvars.v_fov_speed_factor);
 		fov += (targetFov - fov) * 0.06;
 
 		var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight * (1.2);
@@ -217,11 +217,13 @@ require(["GameConsts", "ConVars", "Wad", "Matrix4", "Mesh", "Level", "LevelMesh"
 		catchup += (vp - catchup) * 0.03;
 
 		if(Math.abs(player.vel.z) < 5)
-			bob += xySpeed / 2500;
+			bob += xySpeed / cvars.g_speed_limit * cvars.v_bob_cycle_speed_factor;
 
-		var cameraMatrix =  m4.translation(player.pos.x, player.pos.z + 40 + Math.cos(bob)*3, player.pos.y);
+		var cameraMatrix =  m4.translation(player.pos.x,
+			player.pos.z + g.CAMERA_HEIGHT + Math.cos(bob)*cvars.v_bob_amount,
+			player.pos.y);
 		cameraMatrix = m4.yRotate(cameraMatrix, Math.PI/2 + player.angles.z);
-		cameraMatrix = m4.zRotate(cameraMatrix, (vp - catchup) / -7000);
+		cameraMatrix = m4.zRotate(cameraMatrix, (vp - catchup) * (Math.PI / 180) / -cvars.g_speed_limit * cvars.v_camera_lean_speed_factor);
 		cameraMatrix = m4.xRotate(cameraMatrix, player.angles.x);
 
 		var atlas = resMan.get("atlas");

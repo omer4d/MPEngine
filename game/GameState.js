@@ -1,4 +1,4 @@
-define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp", "Player"], function(g, Geom, Vector3, m4, Level, thingTable, StaticProp, Player) {
+define(["GameConsts", "ConVars", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "StaticProp", "Player"], function(g, cvars, Geom, Vector3, m4, Level, thingTable, StaticProp, Player) {
 	function GameState(level) {
 		this.level = level;
 
@@ -340,13 +340,6 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 		return Math.atan2(det, dot)
 	}
 
-	function accelPlayer2(p, dt) {
-		p.vel.x += p.moveDir.x * 1000 * dt;
-		p.vel.y += p.moveDir.y * 1000 * dt;
-		p.vel.x *= 0.96;
-		p.vel.y *= 0.96;
-	}
-
 	function accelPlayer(p, dt) {
 		var grounded = p.grounded;
 		var oldMoveDir = p.oldMoveDir;
@@ -357,12 +350,7 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 		var a2 = angle(newLookDir, oldMoveDir);
 		var turnAccel = (a1 - a2) * a1;
 
-		var GROUND_ACCEL = 3000;
-		var SPEED_LIMIT = 320;
-		var AIR_ACCEL = 1000;
-
-
-		var accel = grounded ? GROUND_ACCEL : AIR_ACCEL;
+		var accel = grounded ? cvars.g_ground_accel : cvars.g_air_accel;
 		var dv = new Vector3();
 		var vdir = new Vector3(p.vel.x, p.vel.y, 0);
 		vdir.normalize();
@@ -370,11 +358,9 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 		dv.x = p.moveDir.x * accel * dt;
 		dv.y = p.moveDir.y * accel * dt;
 
-
-
 		var dvp = dv.dot(vdir);
-
-		var lim = SPEED_LIMIT + SPEED_LIMIT * turnAccel * (grounded ? 2.5 : 2);
+		var sf = grounded ? cvars.g_ground_turn_speedup_factor : cvars.g_air_turn_speedup_factor;
+		var lim = cvars.g_speed_limit * (1 + turnAccel * sf);
 
 		if(dvp > 0 && dvp + p.vel.length() > lim) {
 			dv.x -= dvp * vdir.x;
@@ -387,57 +373,44 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 			dv.y += dvp * vdir.y;
 		}
 
-
 		if(grounded) {
 			if(p.bufferedJumps > 0) {
-				p.vel.z += 15000 * dt;
+				p.vel.z += cvars.g_jump_accel * dt;
 				--p.bufferedJumps;
 			}else {
 				if(p.moveDir.length() < 0.1) {
-					p.vel.x *= 0.9;
-					p.vel.y *= 0.9;
+					p.vel.x *= cvars.g_friction;
+					p.vel.y *= cvars.g_friction;
 				}
 
-				if(Math.sqrt(p.vel.x*p.vel.x + p.vel.y*p.vel.y) > SPEED_LIMIT / 0.98) {
-					p.vel.x *= 0.98;
-					p.vel.y *= 0.98;
+				var xySpeed = p.xySpeed();
+				if(xySpeed > cvars.g_speed_limit) {
+					var destVx = p.vel.x / xySpeed * cvars.g_speed_limit;
+					var destVy = p.vel.y / xySpeed * cvars.g_speed_limit;
+
+					p.vel.x += (destVx - p.vel.x) * g.EXTRA_SPEED_DECAY;
+					p.vel.y += (destVy - p.vel.y) * g.EXTRA_SPEED_DECAY;
 				}
-
-				//p.vel.x *= 0.95;
-				//p.vel.z *= 0.95;
-				/*
-				var speed = Math.sqrt(p.vel.x*p.vel.x + p.vel.z*p.vel.z);
-				if(speed > 0) {
-					var drop = speed * 4 * dt;
-					var k = Math.max(speed - drop, 0) / speed;
-
-					p.vel.x *= k;
-					p.vel.z *= k;
-				}*/
 			}
 		}
 
-
-
 		p.vel.x += dv.x;
 		p.vel.y += dv.y;
-		p.vel.z -= 800 * dt;
+		p.vel.z -= cvars.g_gravity * dt;
 	}
 
 	function playerCollideLevel(p, level) {
-		var playerHeight = 60;
-
 		var grounded = false;
 		var res = {};
 
-		level.findHeight(p.oldPos.x, p.oldPos.y, p.oldPos.z, playerHeight, p.rad, res);
+		level.findHeight(p.oldPos.x, p.oldPos.y, p.oldPos.z, g.PLAYER_HEIGHT, p.rad, res);
 
-		if(p.pos.z + 60 > res.ceilHeight) {
-			p.pos.z = res.ceilHeight - 60;
+		if(p.pos.z + g.PLAYER_HEIGHT > res.ceilHeight) {
+			p.pos.z = res.ceilHeight - g.PLAYER_HEIGHT;
 			p.vel.z = 0;
 		}
 
-		if(level.vsCircle(p, playerHeight, p.rad, res) && (p.flags & g.F_SOLID)) {
+		if(level.vsCircle(p, g.PLAYER_HEIGHT, p.rad, res) && (p.flags & g.F_SOLID)) {
 			p.pos.x += res.mtx;
 			p.pos.y += res.mty;
 			var vnp = p.vel.x * res.nx + p.vel.y * res.ny;
@@ -446,11 +419,7 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 		}
 
 		if(p.pos.z < res.floorHeight) {
-			//if(p.vel.y <= 0)
-				p.pos.z += (res.floorHeight - p.pos.z) * 0.2;
-
-			//else
-				//p.pos.y = res.floorHeight;
+			p.pos.z += (res.floorHeight - p.pos.z) * (1 - g.STAIR_SMOOTHING);
 
 			if(p.vel.z < 0)
 				p.vel.z = 0;
@@ -458,8 +427,8 @@ define(["GameConsts", "Geom", "Vector3", "Matrix4", "Level", "ThingTable", "Stat
 			grounded = true;
 		}
 
-		if(p.pos.z + playerHeight > res.ceilHeight) {
-			p.pos.z = res.ceilHeight - playerHeight;
+		if(p.pos.z + g.PLAYER_HEIGHT > res.ceilHeight) {
+			p.pos.z = res.ceilHeight - g.PLAYER_HEIGHT;
 			p.vel.z = 0;
 		}
 
